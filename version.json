@@ -1,0 +1,6 @@
+{
+  "version": "2.1.479",
+  "notes": "AI Agent 首个正式版本。\n\n新功能：\n- 接入 xinyuntoken.com 聚合平台，支持 14 个 AI 模型\n- 全新激活引导弹窗\n- LLM 设置页重设计，支持 ping 连接检测\n- 启动时等待后端就绪，避免黑屏",
+  "url": "https://gitee.com/my_spease/agent/releases",
+  "minVersion": "2.1.0"
+}

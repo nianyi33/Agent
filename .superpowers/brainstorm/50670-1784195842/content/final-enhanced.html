@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>AI Agent v1.0 — Enhanced Design</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap');
+
+/* ═══════════ TOKEN SYSTEM ═══════════ */
+:root {
+  --gray-000: #06060c; --gray-050: #0a0a14; --gray-100: #12121e; --gray-200: #1a1a2a;
+  --gray-300: #2a2a3d; --gray-400: #4a4a5e; --gray-500: #6d6d82; --gray-600: #9494a8;
+  --gray-700: #c4c4d4; --gray-800: #e4e4ee;
+  --glow-purple: #925cf5; --glow-purple-dim: rgba(146,92,245,0.3);
+  --glow-cyan: #4fd8ff; --glow-cyan-dim: rgba(79,216,255,0.35);
+  --glow-amber: #ffb454; --glow-amber-dim: rgba(255,180,84,0.3);
+  --panel-glass: rgba(14,14,26,0.82);
+  --font-ui: 'Inter', -apple-system, sans-serif; --font-mono: 'JetBrains Mono', monospace;
+}
+[data-theme="light"] {
+  --gray-000: #f5f4f0; --gray-050: #fafaf8; --gray-100: #f0efeb; --gray-200: #e8e6e0;
+  --gray-300: #d4d0c8; --gray-400: #a8a498; --gray-500: #787468; --gray-600: #585448;
+  --gray-700: #383428; --gray-800: #181410;
+  --glow-purple: #7c3aed; --glow-purple-dim: rgba(124,58,237,0.25);
+  --glow-cyan: #0891b2; --glow-cyan-dim: rgba(8,145,178,0.3);
+  --glow-amber: #d97706; --glow-amber-dim: rgba(217,119,6,0.3);
+  --panel-glass: rgba(255,255,255,0.90);
+}
+
+* { box-sizing:border-box; margin:0; padding:0; }
+html { -webkit-font-smoothing:antialiased; }
+body {
+  width:100vw; height:100vh; overflow:hidden; font-family:var(--font-ui); color:var(--gray-700);
+  background: var(--gray-000);
+  display:flex; cursor:default; transition:background 0.4s;
+}
+
+/* ═══════════ AMBIENT GLOW CANVAS — 背后呼吸光晕 ═══════════ */
+#ambientCanvas { position:fixed; inset:0; z-index:0; pointer-events:none; }
+[data-theme="light"] #ambientCanvas { display:none; }
+
+/* ═══════════ MICRO-PARTICLE GRID — Fibonacci 微点背景 ═══════════ */
+#microCanvas { position:fixed; inset:0; z-index:1; pointer-events:none; }
+[data-theme="light"] #microCanvas { display:none; }
+
+/* ═══════════ AURORA MIST ORB ═══════════ */
+.orb-wrap { position:relative; width:160px; height:160px; margin:8px auto 14px; display:flex; justify-content:center; align-items:center; }
+#orbCanvas { position:absolute; width:160px; height:160px; z-index:4; }
+.hud-frame { position:absolute; width:160px; height:160px; pointer-events:none; z-index:5; }
+.hud-corner { position:absolute; width:10px; height:10px; border:0.5px solid var(--glow-cyan-dim); opacity:0.4; transition:opacity 0.6s; }
+.hud-corner.tl { top:-4px; left:-4px; border-right:none; border-bottom:none; }
+.hud-corner.tr { top:-4px; right:-4px; border-left:none; border-bottom:none; }
+.hud-corner.bl { bottom:-4px; left:-4px; border-right:none; border-top:none; }
+.hud-corner.br { bottom:-4px; right:-4px; border-left:none; border-top:none; }
+.active .hud-corner { border-color:var(--glow-cyan); opacity:0.8; box-shadow:0 0 6px var(--glow-cyan-dim); }
+.orb-caption { font-family:var(--font-mono); font-size:8px; color:var(--gray-500); text-align:center; letter-spacing:0.5px; margin-top:-10px; z-index:5; position:relative; }
+
+/* ═══════════ LAYOUT ═══════════ */
+.app { flex:1; display:flex; z-index:10; position:relative; }
+.nav { width:56px; flex-shrink:0; background:var(--panel-glass); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border-right:0.5px solid var(--gray-300); display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px; z-index:20; }
+.nav .brand { font-size:18px; margin-bottom:18px; color:var(--gray-500); cursor:pointer; transition:0.3s cubic-bezier(0.25,1,0.5,1); }
+.nav .brand:hover { color:var(--glow-cyan); transform:scale(1.08); }
+.ni { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:15px; cursor:pointer; border:0.5px solid transparent; color:var(--gray-500); transition:0.3s cubic-bezier(0.25,1,0.5,1); position:relative; }
+.ni:hover { background:var(--gray-200); border-color:var(--gray-300); color:var(--gray-600); transform:scale(1.05); }
+.ni.sel { background:rgba(79,216,255,0.06); border-color:var(--glow-cyan-dim); color:var(--glow-cyan); box-shadow:0 0 12px rgba(79,216,255,0.12); }
+.ni .badge { position:absolute; top:6px; right:6px; width:5px; height:5px; border-radius:50%; background:var(--glow-cyan); }
+.nav-spacer { flex:1; }
+
+.sidebar { width:240px; flex-shrink:0; background:rgba(10,10,18,0.6); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-right:0.5px solid var(--gray-300); display:flex; flex-direction:column; padding:20px 16px; overflow-y:auto; z-index:5; }
+[data-theme="light"] .sidebar { background:rgba(255,255,255,0.7); }
+
+.brand-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.brand-mark {
+  width:30px; height:30px; border-radius:50%; flex-shrink:0;
+  background: radial-gradient(circle at 34% 28%, #fff 0 8%, transparent 9%),
+              radial-gradient(circle at 45% 42%, var(--glow-cyan), var(--glow-purple) 58%, #1a0a28 100%);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 0 18px var(--glow-purple-dim);
+  animation: neb-blink 2.6s ease-in-out infinite;
+}
+@keyframes neb-blink { 0%,100%{opacity:1} 50%{opacity:0.7} }
+.brand-copy { display:flex; flex-direction:column; gap:1px; }
+.brand-copy .eyebrow { font-size:9px; letter-spacing:0.2em; text-transform:uppercase; color:var(--gray-500); font-family:var(--font-mono); }
+.brand-copy .title { font-size:13px; font-weight:600; color:var(--gray-800); }
+.sidebar .name { font-size:13px; font-weight:600; color:var(--gray-800); margin-bottom:2px; }
+.sidebar .ver { font-size:10px; color:var(--gray-500); font-family:var(--font-mono); letter-spacing:1px; }
+.sidebar .divider { width:24px; height:0.5px; background:var(--gray-300); margin:12px 0; }
+.status-line { display:flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:10px; color:var(--gray-600); padding:8px 10px; margin:12px 0; background:rgba(255,255,255,0.02); border:0.5px solid var(--gray-300); border-radius:8px; }
+.status-dot { width:5px; height:5px; border-radius:50%; background:var(--glow-cyan); box-shadow:0 0 6px var(--glow-cyan); animation:pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:0.3; transform:scale(0.8)} }
+
+.section-label { font-size:9px; font-family:var(--font-mono); color:var(--gray-500); letter-spacing:1.2px; text-transform:uppercase; margin:12px 0 8px; }
+.mem-list { position:relative; padding-left:12px; margin-bottom:16px; }
+.mem-list::before { content:''; position:absolute; left:2px; top:2px; bottom:2px; width:0.5px; background:linear-gradient(to bottom,var(--glow-cyan-dim),var(--gray-300) 60%,transparent); }
+.mn { position:relative; padding:4px 0 4px 10px; font-size:10px; color:var(--gray-600); }
+.mn::before { content:''; position:absolute; left:-13px; top:8px; width:4px; height:4px; border-radius:50%; background:var(--gray-400); transition:0.3s; }
+.mn.hi { color:var(--gray-800); }
+.mn.hi::before { background:var(--glow-cyan); box-shadow:0 0 5px var(--glow-cyan); }
+
+.main { flex:1; display:flex; flex-direction:column; min-width:0; z-index:5; }
+.topbar { height:40px; flex-shrink:0; display:flex; align-items:center; padding:0 20px; gap:16px; border-bottom:0.5px solid var(--gray-300); font-family:var(--font-mono); font-size:10px; color:var(--gray-500); background:rgba(10,10,20,0.5); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
+[data-theme="light"] .topbar { background:rgba(255,255,255,0.6); }
+.topbar .spacer { flex:1; }
+.top-pill { font-size:9px; padding:3px 10px; border-radius:999px; border:0.5px solid var(--gray-300); color:var(--gray-500); cursor:pointer; transition:0.3s cubic-bezier(0.25,1,0.5,1); }
+.top-pill:hover { border-color:var(--gray-400); color:var(--gray-600); transform:scale(1.04); }
+.top-pill.on { border-color:var(--glow-cyan-dim); color:var(--glow-cyan); background:rgba(79,216,255,0.04); }
+
+.body { flex:1; display:flex; overflow:hidden; }
+.convs { width:230px; flex-shrink:0; display:flex; flex-direction:column; gap:2px; padding:12px; overflow-y:auto; border-right:0.5px solid var(--gray-300); background:rgba(10,10,18,0.3); }
+[data-theme="light"] .convs { background:rgba(255,255,255,0.4); }
+.convs-label { font-family:var(--font-mono); font-size:9px; text-transform:uppercase; letter-spacing:0.14em; color:var(--gray-500); margin-bottom:8px; padding-left:4px; }
+.cv { padding:9px 12px; border-radius:10px; cursor:pointer; border:0.5px solid transparent; transition:0.2s cubic-bezier(0.25,1,0.5,1); }
+.cv:hover { background:var(--gray-200); border-color:var(--gray-300); transform:translateX(2px); }
+.cv.sel { background:rgba(79,216,255,0.04); border-color:var(--glow-cyan-dim); }
+.cv .t { font-size:12px; font-weight:500; color:var(--gray-700); margin-bottom:2px; }
+.cv .m { font-family:var(--font-mono); font-size:9px; color:var(--gray-500); }
+.cv .p { font-size:10px; color:var(--gray-600); margin-top:3px; line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+.chat { flex:1; overflow-y:auto; padding:24px; display:flex; flex-direction:column; gap:18px; }
+.chat::-webkit-scrollbar { width:4px; }
+.chat::-webkit-scrollbar-thumb { background:var(--gray-300); border-radius:4px; }
+.msg { max-width:74%; animation:msgIn 0.4s cubic-bezier(0.25,1,0.5,1); }
+@keyframes msgIn { from { opacity:0; transform:translateY(12px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+.msg.user { align-self:flex-end; }
+.msg.agent { align-self:flex-start; }
+.msg .body { padding:11px 15px; border-radius:14px; font-size:13px; line-height:1.65; transition:box-shadow 0.4s; }
+.msg.user .body { background:var(--gray-200); border:0.5px solid var(--gray-300); border-bottom-right-radius:4px; color:var(--gray-700); }
+.msg.agent .body { background:rgba(79,216,255,0.04); border:0.5px solid var(--glow-cyan-dim); border-bottom-left-radius:4px; color:var(--gray-700); }
+/* AI回复到达瞬间：青色细线闪现 */
+.msg.agent .body { animation:arriveGlow 0.6s ease-out; }
+@keyframes arriveGlow { 0%{box-shadow:0 0 0 1px rgba(79,216,255,0.3); border-color:rgba(79,216,255,0.5)} 100%{box-shadow:none; border-color:var(--glow-cyan-dim)} }
+.msg .meta { display:flex; align-items:center; gap:8px; margin-top:6px; font-family:var(--font-mono); font-size:10px; color:var(--gray-500); }
+.msg .acts { display:flex; gap:4px; margin-left:auto; }
+.msg .act { font-size:9px; padding:4px 8px; border-radius:6px; border:0.5px solid var(--gray-300); background:transparent; color:var(--gray-500); cursor:pointer; transition:0.2s cubic-bezier(0.25,1,0.5,1); }
+.msg .act:hover { border-color:var(--glow-cyan-dim); color:var(--glow-cyan); transform:scale(1.04); }
+.think { display:flex; align-items:center; gap:8px; padding:12px 16px; border-radius:14px; border-bottom-left-radius:4px; background:rgba(79,216,255,0.03); border:0.5px solid var(--glow-cyan-dim); max-width:160px; font-size:12px; color:var(--gray-500); }
+.think .dots { display:flex; gap:3px; }
+.think .dots span { width:5px; height:5px; border-radius:50%; background:var(--glow-cyan); animation:thinkD 1.4s ease-in-out infinite; }
+.think .dots span:nth-child(2){ animation-delay:0.2s; } .think .dots span:nth-child(3){ animation-delay:0.4s; }
+@keyframes thinkD { 0%,60%,100%{ opacity:0.2; scale:0.8; } 30%{ opacity:1; scale:1; } }
+
+.ctx { width:220px; flex-shrink:0; display:flex; flex-direction:column; gap:8px; padding:12px; overflow-y:auto; border-left:0.5px solid var(--gray-300); background:rgba(10,10,18,0.3); }
+[data-theme="light"] .ctx { background:rgba(255,255,255,0.4); }
+.cx { background:var(--panel-glass); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:0.5px solid var(--gray-300); border-radius:10px; padding:10px 12px; transition:0.3s cubic-bezier(0.25,1,0.5,1); position:relative; }
+.cx:hover { border-color:var(--gray-400); transform:translateY(-1px); }
+.cx::before { content:''; position:absolute; top:6px; right:6px; width:3px; height:3px; border-radius:50%; background:var(--glow-cyan); opacity:0.4; }
+.cx-h { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+.cx-l { font-family:var(--font-mono); font-size:8px; text-transform:uppercase; letter-spacing:0.12em; color:var(--gray-500); }
+.cx-d { width:5px; height:5px; border-radius:50%; }
+.cx-d.live { background:var(--glow-cyan); box-shadow:0 0 4px var(--glow-cyan); }
+.cx-d.wait { background:var(--glow-amber); }
+.cx-i { font-size:10px; color:var(--gray-600); padding:3px 0; border-bottom:0.5px solid rgba(255,255,255,0.03); line-height:1.5; display:flex; align-items:flex-start; gap:7px; }
+.cx-i:last-child { border-bottom:none; }
+.cx-tag { font-family:var(--font-mono); font-size:7px; padding:2px 6px; border-radius:4px; background:rgba(79,216,255,0.08); color:var(--glow-cyan); white-space:nowrap; flex-shrink:0; margin-top:1px; }
+.cx-mono { font-family:var(--font-mono); font-size:9px; color:var(--gray-500); line-height:1.8; }
+.cx-mono .v { color:var(--gray-600); }
+.cx-stat { display:flex; align-items:center; gap:8px; padding:1px 0; }
+.cx-bar { flex:1; height:3px; border-radius:2px; background:var(--gray-300); overflow:hidden; }
+.cx-bar .fill { height:100%; border-radius:2px; background:var(--glow-cyan); transition:width 0.6s cubic-bezier(0.25,1,0.5,1); }
+
+/* Input */
+.input-zone { flex-shrink:0; padding:10px 24px 16px; perspective:800px; }
+.input-row { display:flex; gap:8px; align-items:center; background:var(--panel-glass); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:0.5px solid var(--gray-300); border-radius:16px; padding:6px 8px 6px 16px; transition:0.3s cubic-bezier(0.25,1,0.5,1); }
+.input-row:focus-within { border-color:var(--glow-cyan-dim); box-shadow:0 0 0 3px rgba(79,216,255,0.06), 0 0 30px rgba(79,216,255,0.04); }
+.input-prompt { font-family:var(--font-mono); font-size:11px; color:var(--glow-cyan); flex-shrink:0; opacity:0.7; }
+.input-row textarea { flex:1; background:transparent; border:none; outline:none; resize:none; color:var(--gray-700); font-size:13px; padding:4px 0; min-height:22px; max-height:80px; }
+.input-row textarea::placeholder { color:var(--gray-500); }
+.ib { width:36px; height:36px; border-radius:50%; border:0.5px solid var(--gray-300); background:transparent; color:var(--gray-500); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:0.3s cubic-bezier(0.25,1,0.5,1); }
+.ib:hover { border-color:var(--gray-400); color:var(--gray-600); transform:scale(1.06); }
+.ib.on { border-color:var(--glow-amber-dim); color:var(--glow-amber); background:rgba(255,180,84,0.06); }
+.ib.send { background:linear-gradient(135deg,var(--glow-cyan),#2a6fa8); border:none; color:#04121a; font-size:13px; }
+.ib.send:hover { box-shadow:0 0 18px var(--glow-cyan-dim); transform:scale(1.08); }
+.ib.send:active { transform:scale(0.95); transition:0.1s; }
+</style>
+</head>
+<body data-theme="dark">
+
+<!-- ═══ 全屏氛围光晕 Canvas — 呼吸感动态 ═══ -->
+<canvas id="ambientCanvas"></canvas>
+<!-- ═══ 微粒子背景 — Fibonacci 点阵 ═══ -->
+<canvas id="microCanvas"></canvas>
+
+<div class="app">
+  <nav class="nav">
+    <div class="brand">⬢</div>
+    <div class="ni sel">💬<span class="badge"></span></div>
+    <div class="ni">◈</div>
+    <div class="ni">⬡</div>
+    <div class="ni">⊞</div>
+    <div class="nav-spacer"></div>
+    <div class="ni">⚙</div>
+    <div class="ni" id="themeToggle" title="明暗切换">🌙</div>
+  </nav>
+
+  <div class="sidebar">
+    <div class="brand-row">
+    <div class="brand-mark"></div>
+    <div class="brand-copy">
+      <div class="eyebrow">NEXUS CORE</div>
+      <div class="title">AI Agent</div>
+    </div>
+  </div>
+    <div class="ver">AURORA CORE v2.5</div>
+    <div class="status-line"><span class="status-dot"></span> 就绪 · 等待语音输入</div>
+    <div class="orb-wrap" id="orbWrap">
+      <canvas id="orbCanvas"></canvas>
+      <div class="hud-frame">
+        <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+        <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+      </div>
+    </div>
+    <div class="orb-caption">AMBIENT MIST · AUDIO REACTIVE</div>
+    <div class="divider"></div>
+    <div class="section-label">记忆拓扑</div>
+    <div class="mem-list">
+      <div class="mn hi">短期上下文 · 12 条</div>
+      <div class="mn">语义记忆 · 348 条</div>
+      <div class="mn">用户画像 · 已同步</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <span class="status-dot" style="width:6px;height:6px"></span> AI AGENT · 就绪
+      <span class="spacer"></span>
+      <span>qwen-flash</span> <span>⏱ 127H</span>
+      <span class="top-pill on">🔊 TTS 开</span>
+      <span class="top-pill">FunASR</span> <span>aliyun</span>
+    </div>
+    <div class="body">
+      <div class="convs">
+        <div class="convs-label">会话</div>
+        <div class="cv sel"><div class="t">西安今日天气</div><div class="m">今天 16:23</div><div class="p">西安晴天32°C湿度适中…</div></div>
+        <div class="cv"><div class="t">使用语音功能</div><div class="m">昨天 14:05</div><div class="p">按住空格键或点击按钮…</div></div>
+        <div class="cv"><div class="t">安装 FunASR 依赖</div><div class="m">7月15日</div><div class="p">一键安装完成就绪…</div></div>
+        <div class="cv"><div class="t">配置阿里云 API</div><div class="m">7月14日</div><div class="p">Key配置完成ASR+TTS…</div></div>
+      </div>
+      <div class="chat">
+        <div class="msg user"><div class="body">今天西安天气怎么样</div><div class="meta">16:23:04</div></div>
+        <div class="msg agent"><div class="think"><div class="dots"><span></span><span></span><span></span></div><span>分析中…</span></div></div>
+        <div class="msg agent">
+          <div class="body">西安今天晴天，<span style="color:var(--glow-amber);font-weight:500">32°C</span>，湿度 45%，西北风 2-3 级。空气质量良好<span style="color:var(--glow-cyan)"> ●</span>，适合户外活动。</div>
+          <div class="meta">16:23:08<div class="acts"><button class="act">🔊 朗读</button><button class="act">📋</button><button class="act">↩</button></div></div>
+        </div>
+        <div class="msg user"><div class="body">那明天呢</div><div class="meta">16:23:12</div></div>
+        <div class="msg agent">
+          <div class="body">明天多云转阴，<span style="color:var(--glow-amber);font-weight:500">28°C</span>，傍晚可能<span style="color:var(--glow-amber)">阵雨</span>，建议带伞。</div>
+          <div class="meta">16:23:15<div class="acts"><button class="act">🔊 朗读</button><button class="act">📋</button><button class="act">↩</button></div></div>
+        </div>
+      </div>
+      <div class="ctx">
+        <div class="cx"><div class="cx-h"><span class="cx-l">Memory</span><span class="cx-d live"></span></div>
+          <div class="cx-i"><span class="cx-tag">用户</span>住在西安，常查询天气</div>
+          <div class="cx-i"><span class="cx-tag">偏好</span>简洁回答</div>
+          <div class="cx-i"><span class="cx-tag">设备</span>蓝牙耳机，增益补偿</div>
+        </div>
+        <div class="cx"><div class="cx-h"><span class="cx-l">Engine</span><span class="cx-d live"></span></div>
+          <div class="cx-mono">ASR <span class="v" style="color:var(--glow-cyan)">FunASR</span><br>TTS <span class="v" style="color:var(--glow-cyan)">aliyun Cherry</span><br>LLM <span class="v">qwen-flash</span></div>
+        </div>
+        <div class="cx"><div class="cx-h"><span class="cx-l">Metrics</span><span class="cx-d live"></span></div>
+          <div class="cx-stat"><span style="font-size:9px;font-family:monospace;color:var(--gray-500);width:30px">CPU</span><div class="cx-bar"><div class="fill" style="width:12%"></div></div><span style="font-size:9px;font-family:monospace;color:var(--gray-600)">12%</span></div>
+          <div class="cx-stat"><span style="font-size:9px;font-family:monospace;color:var(--gray-500);width:30px">MEM</span><div class="cx-bar"><div class="fill" style="width:42%"></div></div><span style="font-size:9px;font-family:monospace;color:var(--gray-600)">1.1G</span></div>
+          <div class="cx-stat"><span style="font-size:9px;font-family:monospace;color:var(--gray-500);width:30px">AUD</span><div class="cx-bar"><div class="fill" style="width:28%;background:var(--glow-amber)"></div></div><span style="font-size:9px;font-family:monospace;color:var(--gray-600)">-12dB</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="input-zone">
+      <div class="input-row">
+        <span class="input-prompt">▸</span>
+        <textarea rows="1" placeholder="向 AI Agent 发送消息… (输入 / 调命令 · Shift+Enter 换行)"></textarea>
+        <button class="ib on" title="朗读开关">🔊</button>
+        <button class="ib" id="micBtn" title="按住说话">🎤</button>
+        <button class="ib send">→</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════ AMBIENT GLOW — 背景呼吸光晕 ═══════════
+(function(){
+  const c = document.getElementById('ambientCanvas');
+  const ctx = c.getContext('2d');
+  let w,h;
+  function resize(){ w=c.width=window.innerWidth; h=c.height=window.innerHeight; }
+  resize(); window.addEventListener('resize',resize);
+
+  let t = 0;
+  function renderAmbient(){
+    ctx.clearRect(0,0,w,h);
+    ctx.globalCompositeOperation = 'screen';
+    t += 0.003;
+
+    // 3 团互补色，缓慢自转+缩放呼吸
+    const blobs = [
+      { cx:w*0.3, cy:h*0.3, r:340, c:'rgba(146,92,245,0.06)', ph:0 },
+      { cx:w*0.7, cy:h*0.6, r:280, c:'rgba(79,216,255,0.04)', ph:Math.PI*0.7 },
+      { cx:w*0.5, cy:h*0.5, r:400, c:'rgba(255,180,84,0.03)', ph:Math.PI*1.4 },
+    ];
+
+    blobs.forEach(b => {
+      const ox = Math.sin(t*0.4+b.ph)*40;
+      const oy = Math.cos(t*0.35+b.ph)*30;
+      const s = 1 + Math.sin(t*0.6+b.ph)*0.15;
+      ctx.beginPath();
+      const g = ctx.createRadialGradient(b.cx+ox, b.cy+oy, 0, b.cx+ox, b.cy+oy, b.r*s);
+      g.addColorStop(0, b.c.replace(')',''));
+      g.addColorStop(0.5, b.c.replace('0.06','0.015').replace('0.04','0.01').replace('0.03','0.008'));
+      g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g;
+      ctx.arc(b.cx+ox, b.cy+oy, b.r*s, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    ctx.globalCompositeOperation = 'source-over';
+    requestAnimationFrame(renderAmbient);
+  }
+  renderAmbient();
+})();
+
+// ═══════════ MICRO-PARTICLE GRID — Fibonacci 微点 ═══════════
+(function(){
+  const c = document.getElementById('microCanvas');
+  const ctx = c.getContext('2d');
+  let w,h,pts=[];
+  function resize(){
+    w=c.width=window.innerWidth; h=c.height=window.innerHeight;
+    const GA=Math.PI*(3-Math.sqrt(5));
+    pts=[]; for(let i=0;i<200;i++){ let y=1-(2*i)/199, r=Math.sqrt(1-y*y)*0.9, th=i*GA; pts.push({x:r*Math.cos(th),y:r*Math.sin(th),z:y}); }
+  }
+  resize(); window.addEventListener('resize',resize);
+
+  let t=0;
+  function render(){
+    ctx.clearRect(0,0,w,h); t+=0.002;
+    const cx=w*0.82, cy=h*0.42, radius=280;
+    pts.forEach((p,i)=>{
+      const px = cx + p.x*radius + Math.sin(t*1.3+i*0.1)*6;
+      const py = cy + p.z*radius + Math.cos(t*0.9+i*0.1)*6;
+      const alpha = 0.08 + Math.sin(t*2+i*0.3)*0.04;
+      const dotR = 0.6 + Math.sin(t*1.5+i*0.2)*0.3;
+      ctx.beginPath(); ctx.arc(px,py,dotR,0,Math.PI*2);
+      ctx.fillStyle = `rgba(146,92,245,${alpha})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(render);
+  }
+  render();
+})();
+
+// ═══════════ AURORA MIST ORB — motion blur trails ═══════════
+(function(){
+  const canvas = document.getElementById('orbCanvas');
+  const ctx = canvas.getContext('2d');
+  const SZ = 160;
+  canvas.width = SZ * Math.min(window.devicePixelRatio,2);
+  canvas.height = SZ * Math.min(window.devicePixelRatio,2);
+  ctx.scale(Math.min(window.devicePixelRatio,2), Math.min(window.devicePixelRatio,2));
+
+  let t = 0, active = false;
+  // 残影帧缓冲 — motion blur effect
+  let prevFrame = null;
+
+  function render(){
+    // 不清屏全黑，保留 25% 上帧残影 → motion blur
+    ctx.fillStyle = `rgba(6,6,12,0.75)`;
+    ctx.fillRect(0,0,SZ,SZ);
+
+    const cx = 80, cy = 80;
+    t += active ? 0.028 : 0.008;
+    const intensity = active ? 0.3 : 0.12;
+
+    ctx.globalCompositeOperation = 'screen';
+    ctx.filter = `blur(${22 + intensity * 30}px)`;
+
+    const layers = [
+      { r:55, c:'rgba(146,92,245,', ph:0 },
+      { r:62, c:'rgba(79,216,255,', ph:Math.PI*2/3 },
+      { r:48, c:'rgba(255,180,84,', ph:Math.PI*4/3 },
+      { r:40, c:'rgba(255,255,255,', ph:Math.PI },
+    ];
+
+    layers.forEach(l => {
+      ctx.beginPath();
+      const ox = Math.sin(t*1.3+l.ph)*12*intensity;
+      const oy = Math.cos(t*0.9+l.ph)*10*intensity;
+      const x=cx+ox, y=cy+oy, rad=l.r+Math.sin(t*1.5+l.ph)*8;
+      const g = ctx.createRadialGradient(x,y,0,x,y,rad);
+      let alpha = intensity + Math.sin(t+l.ph)*0.04;
+      if(l.c.includes('255,255,255')) alpha *= 0.35;
+      g.addColorStop(0, l.c+alpha+')');
+      g.addColorStop(0.6, l.c+(alpha*0.15)+')');
+      g.addColorStop(1, 'transparent');
+      ctx.fillStyle=g; ctx.arc(x,y,rad,0,Math.PI*2); ctx.fill();
+    });
+
+    ctx.filter='none'; ctx.globalCompositeOperation='source-over';
+    requestAnimationFrame(render);
+  }
+  render();
+
+  const micBtn = document.getElementById('micBtn');
+  const orbWrap = document.getElementById('orbWrap');
+  micBtn.addEventListener('pointerdown',()=>{ active=true; orbWrap.classList.add('active'); });
+  micBtn.addEventListener('pointerup',()=>{ active=false; orbWrap.classList.remove('active'); });
+  micBtn.addEventListener('pointerleave',()=>{ active=false; orbWrap.classList.remove('active'); });
+})();
+
+// ═══════════ MOUSE PARALLAX — 多层视差 ═══════════
+(function(){
+  let mx=0.5, my=0.5;
+  document.addEventListener('mousemove',e=>{ mx=e.clientX/window.innerWidth; my=e.clientY/window.innerHeight; });
+
+  const orbWrap = document.getElementById('orbWrap');
+  function applyParallax(){
+    if(!orbWrap) return requestAnimationFrame(applyParallax);
+    const ox=(mx-0.5)*8, oy=(my-0.5)*6;
+    orbWrap.style.transform = `perspective(400px) rotateY(${ox}deg) rotateX(${-oy}deg)`;
+    requestAnimationFrame(applyParallax);
+  }
+  applyParallax();
+})();
+
+// ═══════════ DARK / LIGHT ═══════════
+const themeBtn = document.getElementById('themeToggle');
+themeBtn.addEventListener('click',()=>{
+  const isLight = document.body.dataset.theme === 'light';
+  document.body.dataset.theme = isLight ? 'dark' : 'light';
+  themeBtn.textContent = isLight ? '🌙' : '☀️';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TreeSloth 实时热点</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#080B24;--gb:rgba(255,255,255,.08);--go:rgba(150,150,255,.25);--t:#F0F0FF;--t2:#8888BB;--a:#8B5CFF}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);font-family:'Inter',-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+#app{height:100%;width:100%;display:flex}
+#globe{flex:1;position:relative;overflow:hidden}
+#globe canvas{display:block;width:100%;height:100%}
+#right{width:340px;flex-shrink:0;display:flex;flex-direction:column;
+  background:rgba(10,14,40,.85);border-left:1px solid var(--go);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+#right::-webkit-scrollbar{width:3px}#right::-webkit-scrollbar-track{background:transparent}#right::-webkit-scrollbar-thumb{background:var(--go);border-radius:2px}
+.tabs{display:flex;gap:6px;padding:14px 14px 0}
+.tabs button{border:none;background:var(--gb);color:var(--t2);padding:6px 14px;border-radius:14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
+.tabs button.on{border:1.5px solid var(--a);color:var(--t);background:rgba(139,92,255,.15)}
+#update{font-size:9px;color:var(--t2);padding:8px 14px}
+#list{flex:1;overflow-y:auto;padding:0 14px 14px}
+.item{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;transition:background .12s;margin-bottom:2px;text-decoration:none;border:1px solid transparent}
+.item:hover{background:rgba(99,91,255,.08);border-color:rgba(150,150,255,.15)}
+.item .r{font-size:15px;font-weight:800;width:22px;text-align:center;flex-shrink:0}
+.item .r.t{color:#FF0050}.item .r:not(.t){color:#555588}
+.item .l{font-size:11px;color:#C0C0EE;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .m{font-size:9px;color:#555588;flex-shrink:0;display:flex;gap:4px;align-items:center}
+.tag{padding:1px 4px;border-radius:3px;font-size:8px;font-weight:600}
+.tag.n{background:rgba(255,0,80,.15);color:#FF0050}.tag.h{background:rgba(255,120,0,.15);color:#FF7800}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="globe"><canvas id="earth-canvas"></canvas></div>
+  <div id="right">
+    <div class="tabs" id="tabs">
+      <button class="on" data-p="douyin">抖音</button>
+      <button data-p="weibo">微博</button>
+      <button data-p="xiaohongshu">小红书</button>
+      <button data-p="wechat">微信</button>
+    </div>
+    <div id="update">加载中...</div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<script type="module">
+import { HotspotEarth } from './hotspot-earth.js';
+
+const API = 'http://127.0.0.1:3721';
+let data = null, platform = 'douyin';
+
+// ── Init 3D Earth using original HotspotEarth class ──
+const canvas = document.getElementById('earth-canvas');
+const earth = new HotspotEarth(canvas);
+await earth.init();
+earth.triggerAppear();
+
+// ── Data fetch ──
+async function fetchData(){
+  try{
+    const r = await fetch(`${API}/hotspots`); data = await r.json();
+    document.getElementById('update').textContent =
+      '更新于 ' + new Date(data.fetchedAt).toLocaleTimeString('zh-CN') +
+      (data.status?.[platform]?.source ? ' · ' + (data.status[platform].source || '实时') : '');
+    render();
+  } catch(e) { document.getElementById('update').textContent = '加载失败'; }
+}
+
+function render(){
+  const items = data?.platforms?.[platform]||[];
+  document.getElementById('list').innerHTML = items.map((it,i)=>{
+    let tags='';
+    if(it.isNew) tags+='<span class="tag n">NEW</span>';
+    if(it.tag&&it.tag!=='0') tags+=`<span class="tag h">${it.tag}</span>`;
+    return `<a class="item" href="${it.url||'#'}" target="_blank" rel="noopener">
+      <span class="r${i<3?' t':''}">${it.rank||i+1}</span>
+      <span class="l">${it.title.replace(/</g,'&lt;')}</span>
+      <span class="m">${it.heat&&it.heat!=='0'?it.heat:''} ${tags}</span>
+    </a>`;
+  }).join('');
+}
+
+document.getElementById('tabs').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b)return;
+  platform=b.dataset.p;
+  document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  render();
+});
+
+fetchData();
+setInterval(fetchData, 30*60*1000);
+</script>
+</body>
+</html>

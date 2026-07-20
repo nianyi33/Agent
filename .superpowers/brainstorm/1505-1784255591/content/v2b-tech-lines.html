@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>AI Agent — v2 · Tech Lines</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg-shell: #0a0b14;
+    --bg-surface: #0f1020;
+    --bg-elevated: #16172d;
+    --bg-card: #12132a;
+    --accent: #7c3aed;
+    --accent-soft: rgba(124,58,237,0.15);
+    --accent-mid: rgba(124,58,237,0.3);
+    --accent-dim: rgba(124,58,237,0.07);
+    --warm: #f59e0b;
+    --text-1: #f0f0f5;
+    --text-2: #8b8ba8;
+    --text-3: #4a4a65;
+    --border: rgba(255,255,255,0.06);
+    --border-on: rgba(124,58,237,0.35);
+    --green: #22c55e;
+    --radius: 10px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:'Inter','PingFang SC','Microsoft YaHei',sans-serif;
+    background:var(--bg-shell); color:var(--text-1);
+    width:1200px; height:800px; overflow:hidden; display:flex;
+    position:relative;
+  }
+
+  /* ── Tech Line Background ── */
+  .bg-lines {
+    position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden;
+  }
+  .bg-lines svg { width:100%; height:100%; }
+  .bg-lines line, .bg-lines path { stroke: rgba(124,58,237,0.08); stroke-width:1; }
+  .bg-lines circle { fill: none; stroke: rgba(124,58,237,0.06); stroke-width:1; }
+
+  /* Corner accent glows */
+  .glow-corner {
+    position:absolute; z-index:0; pointer-events:none;
+    border-radius:50%; filter:blur(80px); opacity:0.5;
+  }
+  .glow-tl { top:-160px; left:-120px; width:400px; height:400px; background:rgba(124,58,237,0.08); }
+  .glow-br { bottom:-160px; right:-120px; width:400px; height:400px; background:rgba(245,158,11,0.05); }
+
+  /* ── Zigzag tech lines (CSS) ── */
+  .tech-line {
+    position:absolute; z-index:0; pointer-events:none;
+    border-left:1px solid rgba(124,58,237,0.1);
+  }
+  .tech-line::after {
+    content:''; position:absolute; bottom:-4px; left:-3px;
+    width:7px; height:7px; border-radius:50%;
+    background:rgba(124,58,237,0.25);
+    box-shadow:0 0 8px rgba(124,58,237,0.3);
+  }
+  .tech-line.tl1 { left:68px; top:40px; height:80px; }
+  .tech-line.tl2 { left:68px; top:140px; height:40px; }
+  .tech-line.tl3 { right:262px; top:40px; height:100px; opacity:0.6; }
+
+  /* Horizontal accent bar under top bar */
+  .top-accent {
+    position:absolute; top:38px; left:0; right:0; height:1px; z-index:0; pointer-events:none;
+    background:linear-gradient(90deg, transparent, rgba(124,58,237,0.2) 20%, rgba(124,58,237,0.3) 50%, rgba(124,58,237,0.2) 80%, transparent);
+  }
+
+  /* ── Nav ── */
+  .nav { width:56px; flex-shrink:0; background:var(--bg-surface); border-right:1px solid var(--border); display:flex; flex-direction:column; align-items:center; padding:14px 0; gap:4px; z-index:10; position:relative; }
+  .nav .brand { font-size:18px; margin-bottom:10px; opacity:0.8; cursor:pointer; }
+  .ni { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; border:1px solid transparent; transition:.18s; }
+  .ni:hover { background:var(--bg-elevated); border-color:var(--border); }
+  .ni.sel { background:var(--accent-soft); border-color:var(--accent); box-shadow:0 0 12px rgba(124,58,237,0.2); }
+  .ni .dot { position:absolute; top:4px; right:4px; width:6px; height:6px; border-radius:50%; background:var(--accent); }
+  .nav .spacer { flex:1; }
+
+  /* ── Main ── */
+  .main { flex:1; display:flex; flex-direction:column; min-width:0; position:relative; z-index:5; }
+  .topbar { height:38px; flex-shrink:0; display:flex; align-items:center; padding:0 18px; border-bottom:1px solid var(--border); gap:16px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-2); }
+  .topbar .spacer{ flex:1; }
+  .top-dot { width:7px; height:7px; border-radius:50%; background:var(--green); }
+  .top-pill { font-size:9px; padding:3px 10px; border-radius:999px; border:1px solid var(--border); color:var(--text-3); cursor:pointer; transition:.2s; }
+  .top-pill:hover { border-color:var(--border-on); color:var(--text-2); }
+  .top-pill.on { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+
+  /* ── Body ── */
+  .body { flex:1; display:flex; overflow:hidden; }
+
+  .convs { width:320px; flex-shrink:0; border-right:1px solid var(--border); padding:12px; display:flex; flex-direction:column; gap:4px; overflow-y:auto; }
+  .convs .lbl { font-family:'JetBrains Mono',monospace; font-size:9px; text-transform:uppercase; letter-spacing:.14em; color:var(--text-3); margin-bottom:4px; }
+  .cv { padding:10px 12px; border-radius:var(--radius); cursor:pointer; border:1px solid transparent; transition:.15s; }
+  .cv:hover { background:var(--bg-elevated); }
+  .cv.sel { background:var(--accent-soft); border-color:var(--accent); }
+  .cv .t { font-size:12px; font-weight:500; color:var(--text-1); margin-bottom:2px; }
+  .cv .m { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-3); }
+  .cv .p { font-size:11px; color:var(--text-2); margin-top:4px; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  .chat { flex:1; padding:20px 24px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; }
+  .chat .empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; }
+  .chat .empty .brand-lg { font-size:56px; opacity:.08; }
+  .chat .empty .sub { font-size:13px; color:var(--text-3); font-weight:300; letter-spacing:.03em; }
+  .msg { max-width:80%; line-height:1.6; font-size:13px; }
+  .msg.user { align-self:flex-end; margin-left:auto; }
+  .msg.agent { align-self:flex-start; }
+  .msg .bb { padding:10px 16px; border-radius:14px; }
+  .msg.user .bb { background:var(--accent-soft); border:1px solid var(--accent-mid); border-bottom-right-radius:4px; }
+  .msg.agent .bb { background:var(--bg-elevated); border:1px solid var(--border); border-bottom-left-radius:4px; }
+  .msg .acts { display:flex; gap:6px; margin-top:6px; }
+  .msg .ab { font-family:'JetBrains Mono',monospace; font-size:9px; padding:3px 8px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-3); cursor:pointer; transition:.15s; }
+  .msg .ab:hover { border-color:var(--border-on); color:var(--text-2); }
+
+  .ctx { width:250px; flex-shrink:0; background:var(--bg-surface); border-left:1px solid var(--border); padding:12px; display:flex; flex-direction:column; gap:8px; overflow-y:auto; }
+  .cx { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:10px 12px; transition:.2s; position:relative; }
+  .cx:hover { border-color:var(--border-on); }
+  /* Small accent dot on card corners */
+  .cx::before { content:''; position:absolute; top:6px; right:6px; width:4px; height:4px; border-radius:50%; background:var(--accent); opacity:0.4; }
+  .cx-h { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .cx-l { font-family:'JetBrains Mono',monospace; font-size:8px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-3); }
+  .cx-d { width:5px; height:5px; border-radius:50%; }
+  .cx-d.live { background:var(--green); }
+  .cx-d.wait { background:var(--warm); }
+  .cx-i { font-size:11px; color:var(--text-2); padding:3px 0; border-bottom:1px solid rgba(255,255,255,.03); line-height:1.5; display:flex; align-items:flex-start; gap:7px; }
+  .cx-i:last-child { border-bottom:none; }
+  .cx-t { font-family:'JetBrains Mono',monospace; font-size:8px; padding:1px 6px; border-radius:4px; background:var(--accent-soft); color:var(--accent); white-space:nowrap; flex-shrink:0; margin-top:1px; }
+  .cx-m { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-3); line-height:1.8; }
+
+  .inp { flex-shrink:0; padding:10px 20px 16px; }
+  .inp-row { display:flex; gap:6px; align-items:center; background:var(--bg-elevated); border:1px solid var(--border); border-radius:14px; padding:5px 6px 5px 14px; transition:.25s; }
+  .inp-row:focus-within { border-color:var(--border-on); box-shadow:0 0 0 3px rgba(124,58,237,.08); }
+  .inp-prompt { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--accent); flex-shrink:0; }
+  .inp-row textarea { flex:1; background:transparent; border:none; outline:none; resize:none; color:var(--text-1); font-family:Inter,sans-serif; font-size:13px; padding:4px 0; min-height:22px; max-height:80px; }
+  .inp-row textarea::placeholder { color:var(--text-3); }
+  .ib { width:34px; height:34px; border-radius:50%; border:1px solid var(--border); background:var(--bg-card); color:var(--text-2); font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:.2s; }
+  .ib:hover { border-color:var(--border-on); color:var(--text-1); }
+  .ib.on { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+  .ib.send { background:var(--accent); border:none; color:white; font-size:13px; }
+  .ib.send:hover { background:#8b5cf6; }
+
+  /* ── Subtle grid on empty chat state ── */
+  .chat-grid {
+    position:absolute; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      linear-gradient(rgba(124,58,237,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,58,237,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    background-position: 30px 30px;
+    opacity:0.5;
+  }
+</style>
+</head>
+<body>
+
+<!-- Tech line background -->
+<div class="bg-lines">
+  <svg viewBox="0 0 1200 800" preserveAspectRatio="none">
+    <!-- Horizon lines -->
+    <line x1="0" y1="38" x2="1200" y2="38" stroke="rgba(124,58,237,0.12)" stroke-width="0.5" />
+    <line x1="56" y1="0" x2="56" y2="800" stroke="rgba(124,58,237,0.08)" />
+
+    <!-- Large faint circles -->
+    <circle cx="700" cy="400" r="300" stroke="rgba(124,58,237,0.04)" stroke-width="1" fill="none" />
+    <circle cx="700" cy="400" r="200" stroke="rgba(124,58,237,0.06)" stroke-width="0.5" fill="none" />
+    <circle cx="700" cy="400" r="100" stroke="rgba(124,58,237,0.08)" stroke-width="0.5" fill="none" />
+
+    <!-- Diagonal tech lines -->
+    <line x1="56" y1="120" x2="56" y2="200" stroke="rgba(124,58,237,0.08)" stroke-width="1" stroke-dasharray="2 6" />
+    <line x1="56" y1="220" x2="300" y2="220" stroke="rgba(124,58,237,0.05)" stroke-width="0.5" />
+    <line x1="950" y1="38" x2="950" y2="138" stroke="rgba(124,58,237,0.06)" stroke-width="1" stroke-dasharray="2 6" />
+    <line x1="950" y1="158" x2="950" y2="300" stroke="rgba(245,158,11,0.04)" stroke-width="0.5" />
+
+    <!-- Corner brackets -->
+    <path d="M0 0 L0 20 M0 0 L20 0" stroke="rgba(124,58,237,0.15)" stroke-width="1.5" fill="none" />
+    <path d="M1200 0 L1200 20 M1200 0 L1180 0" stroke="rgba(124,58,237,0.15)" stroke-width="1.5" fill="none" />
+    <path d="M0 800 L0 780 M0 800 L20 800" stroke="rgba(124,58,237,0.1)" stroke-width="1.5" fill="none" />
+
+    <!-- Dashed circuit trace patterns -->
+    <path d="M120 280 L300 280 L300 440 L500 440" stroke="rgba(124,58,237,0.05)" stroke-width="1" fill="none" stroke-dasharray="4 8" />
+    <path d="M700 580 L850 580 L850 640 L1000 640" stroke="rgba(245,158,11,0.03)" stroke-width="1" fill="none" stroke-dasharray="4 12" />
+  </svg>
+</div>
+
+<!-- Glow corners -->
+<div class="glow-corner glow-tl"></div>
+<div class="glow-corner glow-br"></div>
+<div class="tech-line tl1"></div>
+<div class="tech-line tl2"></div>
+<div class="tech-line tl3"></div>
+
+<nav class="nav">
+  <div class="brand">✦</div>
+  <div class="ni sel" style="position:relative">💬<span class="dot"></span></div>
+  <div class="ni">◈</div>
+  <div class="ni">⬡</div>
+  <div class="ni">⊞</div>
+  <div class="spacer"></div>
+  <div class="ni">⚙</div>
+  <div class="ni">🌙</div>
+</nav>
+
+<div class="main">
+  <div class="top-accent"></div>
+  <div class="topbar">
+    <span class="top-dot"></span> AI AGENT · 就绪
+    <span class="spacer"></span>
+    <span>qwen-flash</span>
+    <span>⏱ 127H</span>
+    <span class="top-pill on">🔊 TTS</span>
+    <span class="top-pill">FunASR</span>
+  </div>
+
+  <div class="body">
+    <div class="chat-grid"></div>
+    <div class="convs">
+      <div class="lbl">会话</div>
+      <div class="cv sel"><div class="t">西安今日天气</div><div class="m">今天 16:23</div><div class="p">西安晴天，32°C，湿度适中…</div></div>
+      <div class="cv"><div class="t">如何使用语音功能</div><div class="m">昨天 14:05</div><div class="p">按住空格键或点击按钮说话…</div></div>
+      <div class="cv"><div class="t">安装 Python 依赖</div><div class="m">7月15日 10:30</div><div class="p">一键安装完成，FunASR 就绪…</div></div>
+      <div class="cv"><div class="t">数据分析任务</div><div class="m">7月14日 09:12</div><div class="p">CSV处理完成，统计摘要如下…</div></div>
+    </div>
+
+    <div class="chat">
+      <div class="msg user"><div class="bb">今天西安天气怎么样</div></div>
+      <div class="msg agent">
+        <div class="bb">西安今天晴天，气温 32°C，湿度 45%，西北风 2-3 级。空气质量良好，适合户外活动。</div>
+        <div class="acts">
+          <button class="ab">🔊 朗读</button>
+          <button class="ab">📋 复制</button>
+          <button class="ab">↩ 追问</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ctx">
+      <div class="cx"><div class="cx-h"><span class="cx-l">Memory</span><span class="cx-d live"></span></div>
+        <div class="cx-i"><span class="cx-t">用户</span>住在西安，经常查询天气和出行</div>
+        <div class="cx-i"><span class="cx-t">偏好</span>简短风格，不喜欢冗长</div>
+        <div class="cx-i"><span class="cx-t">设备</span>蓝牙耳机，需增益补偿</div>
+      </div>
+      <div class="cx"><div class="cx-h"><span class="cx-l">Tools</span><span class="cx-d wait"></span></div>
+        <div class="cx-i"><span style="font-family:monospace;font-size:10px;">web_search</span><span style="margin-left:auto;color:#f59e0b;font-size:9px">running</span></div>
+        <div class="cx-i"><span style="font-family:monospace;font-size:10px;">recall</span><span style="margin-left:auto;color:#22c55e;font-size:9px">done</span></div>
+        <div class="cx-i"><span style="font-family:monospace;font-size:10px;">speak</span><span style="margin-left:auto;color:var(--text-3);font-size:9px">queued</span></div>
+      </div>
+      <div class="cx"><div class="cx-h"><span class="cx-l">System</span><span class="cx-d live"></span></div>
+        <div class="cx-m">CPU <span style="color:#22c55e">8%</span> · MEM 1.1G<br>TTS <span style="color:#7c3aed">aliyun</span><br>ASR <span style="color:#7c3aed">FunASR</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="inp">
+    <div class="inp-row">
+      <span class="inp-prompt">▸</span>
+      <textarea rows="1" placeholder="向 AI Agent 发送消息… (输入 / 调命令)"></textarea>
+      <button class="ib on" title="朗读开关">🔊</button>
+      <button class="ib" title="按住说话">🎤</button>
+      <button class="ib send">→</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

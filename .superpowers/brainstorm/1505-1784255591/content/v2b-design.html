@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>AI Agent — v2 Design (No Orb)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg-shell: #0a0b14;
+    --bg-surface: #0f1020;
+    --bg-elevated: #16172d;
+    --bg-card: #12132a;
+    --accent: #7c3aed;
+    --accent-soft: rgba(124,58,237,0.15);
+    --accent-mid: rgba(124,58,237,0.3);
+    --warm: #f59e0b;
+    --warm-soft: rgba(245,158,11,0.12);
+    --text-1: #f0f0f5;
+    --text-2: #8b8ba8;
+    --text-3: #4a4a65;
+    --border: rgba(255,255,255,0.06);
+    --border-on: rgba(124,58,237,0.35);
+    --green: #22c55e;
+    --red: #ef4444;
+    --radius: 10px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:'Inter','PingFang SC','Microsoft YaHei',sans-serif;
+    background:var(--bg-shell); color:var(--text-1);
+    width:1200px; height:800px; overflow:hidden; display:flex;
+  }
+
+  /* ── Nav ── */
+  .nav { width:56px; flex-shrink:0; background:var(--bg-surface); border-right:1px solid var(--border); display:flex; flex-direction:column; align-items:center; padding:14px 0; gap:4px; z-index:10; }
+  .nav .brand { font-size:18px; margin-bottom:10px; opacity:0.8; cursor:pointer; }
+  .ni { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; border:1px solid transparent; transition:.18s; }
+  .ni:hover { background:var(--bg-elevated); border-color:var(--border); }
+  .ni.sel { background:var(--accent-soft); border-color:var(--accent); box-shadow:0 0 12px rgba(124,58,237,0.2); }
+  .ni .dot { position:absolute; top:4px; right:4px; width:6px; height:6px; border-radius:50%; background:var(--accent); }
+  .nav .spacer { flex:1; }
+
+  /* ── Main ── */
+  .main { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .topbar { height:38px; flex-shrink:0; display:flex; align-items:center; padding:0 18px; border-bottom:1px solid var(--border); gap:16px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-2); }
+  .topbar .spacer{ flex:1; }
+  .top-dot { width:7px; height:7px; border-radius:50%; background:var(--green); }
+  .top-pill { font-size:9px; padding:3px 10px; border-radius:999px; border:1px solid var(--border); color:var(--text-3); cursor:pointer; transition:.2s; }
+  .top-pill:hover { border-color:var(--border-on); color:var(--text-2); }
+  .top-pill.on { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+
+  /* ── Body ── */
+  .body { flex:1; display:flex; overflow:hidden; }
+
+  /* Left: convos */
+  .convs { width:320px; flex-shrink:0; border-right:1px solid var(--border); padding:12px; display:flex; flex-direction:column; gap:4px; overflow-y:auto; }
+  .convs .lbl { font-family:'JetBrains Mono',monospace; font-size:9px; text-transform:uppercase; letter-spacing:.14em; color:var(--text-3); margin-bottom:4px; }
+  .cv { padding:10px 12px; border-radius:var(--radius); cursor:pointer; border:1px solid transparent; transition:.15s; }
+  .cv:hover { background:var(--bg-elevated); }
+  .cv.sel { background:var(--accent-soft); border-color:var(--accent); }
+  .cv .t { font-size:12px; font-weight:500; color:var(--text-1); margin-bottom:2px; }
+  .cv .m { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-3); }
+  .cv .p { font-size:11px; color:var(--text-2); margin-top:4px; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* Center: chat */
+  .chat { flex:1; padding:20px 24px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; }
+  .chat .empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; }
+  .chat .empty .brand-lg { font-size:64px; opacity:.12; }
+  .chat .empty .sub { font-size:14px; color:var(--text-3); font-weight:300; letter-spacing:.02em; }
+  .msg { max-width:80%; line-height:1.6; font-size:13px; }
+  .msg.user { align-self:flex-end; margin-left:auto; }
+  .msg.agent { align-self:flex-start; }
+  .msg .bb { padding:10px 16px; border-radius:14px; }
+  .msg.user .bb { background:var(--accent-soft); border:1px solid var(--accent-mid); border-bottom-right-radius:4px; }
+  .msg.agent .bb { background:var(--bg-elevated); border:1px solid var(--border); border-bottom-left-radius:4px; }
+  .msg .acts { display:flex; gap:6px; margin-top:6px; }
+  .msg .ab { font-family:'JetBrains Mono',monospace; font-size:9px; padding:3px 8px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-3); cursor:pointer; transition:.15s; }
+  .msg .ab:hover { border-color:var(--border-on); color:var(--text-2); }
+
+  /* Right: context */
+  .ctx { width:250px; flex-shrink:0; background:var(--bg-surface); border-left:1px solid var(--border); padding:12px; display:flex; flex-direction:column; gap:8px; overflow-y:auto; }
+  .cx { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:10px 12px; transition:.2s; }
+  .cx:hover { border-color:var(--border-on); }
+  .cx-h { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .cx-l { font-family:'JetBrains Mono',monospace; font-size:8px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-3); }
+  .cx-d { width:5px; height:5px; border-radius:50%; }
+  .cx-d.live { background:var(--green); }
+  .cx-d.wait { background:var(--warm); }
+  .cx-i { font-size:11px; color:var(--text-2); padding:3px 0; border-bottom:1px solid rgba(255,255,255,.03); line-height:1.5; display:flex; align-items:flex-start; gap:7px; }
+  .cx-i:last-child { border-bottom:none; }
+  .cx-t { font-family:'JetBrains Mono',monospace; font-size:8px; padding:1px 6px; border-radius:4px; background:var(--accent-soft); color:var(--accent); white-space:nowrap; flex-shrink:0; margin-top:1px; }
+  .cx-m { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-3); line-height:1.8; }
+
+  /* Input */
+  .inp { flex-shrink:0; padding:10px 20px 16px; }
+  .inp-row { display:flex; gap:6px; align-items:center; background:var(--bg-elevated); border:1px solid var(--border); border-radius:14px; padding:5px 6px 5px 14px; transition:.25s; }
+  .inp-row:focus-within { border-color:var(--border-on); box-shadow:0 0 0 3px rgba(124,58,237,.08); }
+  .inp-prompt { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--accent); flex-shrink:0; }
+  .inp-row textarea { flex:1; background:transparent; border:none; outline:none; resize:none; color:var(--text-1); font-family:Inter,sans-serif; font-size:13px; padding:4px 0; min-height:22px; max-height:80px; }
+  .inp-row textarea::placeholder { color:var(--text-3); }
+  .ib { width:34px; height:34px; border-radius:50%; border:1px solid var(--border); background:var(--bg-card); color:var(--text-2); font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:.2s; }
+  .ib:hover { border-color:var(--border-on); color:var(--text-1); }
+  .ib.on { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+  .ib.send { background:var(--accent); border:none; color:white; font-size:13px; }
+  .ib.send:hover { background:#8b5cf6; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="brand">✦</div>
+  <div class="ni sel" style="position:relative">💬<span class="dot"></span></div>
+  <div class="ni">◈</div>
+  <div class="ni">⬡</div>
+  <div class="ni">⊞</div>
+  <div class="spacer"></div>
+  <div class="ni">⚙</div>
+  <div class="ni">🌙</div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <span class="top-dot"></span> AI AGENT · 就绪
+    <span class="spacer"></span>
+    <span>qwen-flash</span>
+    <span>⏱ 127H</span>
+    <span class="top-pill on">🔊 TTS</span>
+    <span class="top-pill">FunASR</span>
+  </div>
+
+  <div class="body">
+    <div class="convs">
+      <div class="lbl">会话</div>
+      <div class="cv sel"><div class="t">西安今日天气</div><div class="m">今天 16:23</div><div class="p">西安晴天，32°C，湿度适中…</div></div>
+      <div class="cv"><div class="t">如何使用语音功能</div><div class="m">昨天 14:05</div><div class="p">按住空格键或点击按钮说话…</div></div>
+      <div class="cv"><div class="t">安装 Python 依赖</div><div class="m">7月15日 10:30</div><div class="p">一键安装完成，FunASR 就绪…</div></div>
+      <div class="cv"><div class="t">数据分析任务</div><div class="m">7月14日 09:12</div><div class="p">CSV处理完成，统计摘要如下…</div></div>
+    </div>
+
+    <div class="chat">
+      <div class="msg user"><div class="bb">今天西安天气怎么样</div></div>
+      <div class="msg agent">
+        <div class="bb">西安今天晴天，气温 32°C，湿度 45%，西北风 2-3 级。空气质量良好，适合户外活动。</div>
+        <div class="acts">
+          <button class="ab">🔊 朗读</button>
+          <button class="ab">📋 复制</button>
+          <button class="ab">↩ 追问</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ctx">
+      <div class="cx"><div class="cx-h"><span class="cx-l">Memory</span><span class="cx-d live"></span></div>
+        <div class="cx-i"><span class="cx-t">用户</span>住在西安，经常查询天气和出行</div>
+        <div class="cx-i"><span class="cx-t">偏好</span>简短风格，不喜欢冗长</div>
+        <div class="cx-i"><span class="cx-t">设备</span>蓝牙耳机，需增益补偿</div>
+      </div>
+      <div class="cx"><div class="cx-h"><span class="cx-l">Tools</span><span class="cx-d wait"></span></div>
+        <div class="cx-i"><span style="font-family:monospace;font-size:10px;">web_search</span><span style="margin-left:auto;color:#f59e0b;font-size:9px">running</span></div>
+        <div class="cx-i"><span style="font-family:monospace;font-size:10px;">recall</span><span style="margin-left:auto;color:#22c55e;font-size:9px">done</span></div>
+        <div class="cx-i"><span style="font-family:monospace;font-size:10px;">speak</span><span style="margin-left:auto;color:var(--text-3);font-size:9px">queued</span></div>
+      </div>
+      <div class="cx"><div class="cx-h"><span class="cx-l">System</span><span class="cx-d live"></span></div>
+        <div class="cx-m">CPU <span style="color:#22c55e">8%</span> · MEM 1.1G<br>TTS <span style="color:#7c3aed">aliyun</span><br>ASR <span style="color:#7c3aed">FunASR</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="inp">
+    <div class="inp-row">
+      <span class="inp-prompt">▸</span>
+      <textarea rows="1" placeholder="向 AI Agent 发送消息… (输入 / 调命令)"></textarea>
+      <button class="ib on" title="朗读开关">🔊</button>
+      <button class="ib" title="按住说话">🎤</button>
+      <button class="ib send">→</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

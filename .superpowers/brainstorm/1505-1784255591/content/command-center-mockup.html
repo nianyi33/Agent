@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent — Command Center</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg-shell: #0a0b14;
+    --bg-surface: #0f1020;
+    --bg-elevated: #16172d;
+    --accent: #7c3aed;
+    --accent-soft: rgba(124,58,237,0.18);
+    --accent-glow: rgba(124,58,237,0.35);
+    --warm: #f59e0b;
+    --warm-soft: rgba(245,158,11,0.15);
+    --text-primary: #f0f0f5;
+    --text-secondary: #8b8ba8;
+    --text-muted: #4a4a65;
+    --border: rgba(255,255,255,0.06);
+    --border-active: rgba(124,58,237,0.3);
+    --green: #22c55e;
+    --red: #ef4444;
+    --blue: #38bdf8;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg-shell);
+    color: var(--text-primary);
+    width: 1200px; height: 800px;
+    overflow: hidden;
+    display: flex;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ── Left Icon Nav ── */
+  .icon-nav {
+    width: 56px;
+    flex-shrink: 0;
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 0;
+    gap: 6px;
+    z-index: 10;
+  }
+  .icon-nav .brand { font-size:20px; margin-bottom:12px; cursor:pointer; opacity:0.8; transition:opacity 0.2s; }
+  .icon-nav .brand:hover { opacity:1; }
+  .nav-item {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    border: 1px solid transparent;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--bg-elevated); border-color: var(--border); }
+  .nav-item.active { background: var(--accent-soft); border-color: var(--accent); box-shadow: 0 0 12px rgba(124,58,237,0.2); }
+  .nav-item .badge { position:absolute; top:4px; right:4px; width:7px; height:7px; border-radius:50%; background:var(--accent); }
+  .nav-spacer { flex:1; }
+  .nav-bottom { margin-top: auto; }
+
+  /* ── Main Area ── */
+  .main {
+    flex:1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── Top Status Bar ── */
+  .status-bar {
+    height: 40px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    gap: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+  .status-bar .spacer { flex:1; }
+  .status-indicator { display:flex; align-items:center; gap:6px; }
+  .status-dot { width:7px; height:7px; border-radius:50%; }
+  .status-dot.online { background:var(--green); box-shadow:0 0 6px rgba(34,197,94,0.5); }
+  .status-dot.idle { background:var(--warm); }
+  .status-pill {
+    font-size:10px;
+    padding:3px 10px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    color: var(--text-muted);
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+  .status-pill:hover { border-color: var(--border-active); color: var(--text-secondary); }
+  .status-pill.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  /* ── Voice Center Zone ── */
+  .voice-zone {
+    flex:1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .voice-orb {
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, rgba(124,58,237,0.25) 0%, rgba(124,58,237,0.05) 60%, transparent 100%);
+    border: 2px solid rgba(124,58,237,0.35);
+    box-shadow: 0 0 80px rgba(124,58,237,0.15), 0 0 160px rgba(124,58,237,0.06), inset 0 0 40px rgba(124,58,237,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4,0,0.2,1);
+    position: relative;
+  }
+  .voice-orb:hover {
+    border-color: rgba(124,58,237,0.55);
+    box-shadow: 0 0 120px rgba(124,58,237,0.25), 0 0 200px rgba(124,58,237,0.1), inset 0 0 60px rgba(124,58,237,0.12);
+    transform: scale(1.04);
+  }
+  .voice-orb:active, .voice-orb.listening {
+    border-color: var(--red);
+    border-width: 2.5px;
+    box-shadow: 0 0 100px rgba(239,68,68,0.3), 0 0 180px rgba(239,68,68,0.12);
+    animation: orb-pulse 0.8s ease-in-out infinite;
+  }
+  @keyframes orb-pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 80px rgba(239,68,68,0.25), 0 0 140px rgba(239,68,68,0.1); }
+    50% { transform: scale(1.06); box-shadow: 0 0 120px rgba(239,68,68,0.4), 0 0 200px rgba(239,68,68,0.18); }
+  }
+  .orb-icon { font-size: 48px; pointer-events: none; }
+  .orb-ring {
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(124,58,237,0.12);
+    animation: ring-rotate 12s linear infinite;
+  }
+  @keyframes ring-rotate { to { transform: rotate(360deg); } }
+  .orb-ring:nth-child(2) { inset: -20px; animation-duration:18s; animation-direction:reverse; }
+
+  .voice-hint {
+    margin-top: 20px;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.04em;
+    transition: color 0.3s;
+  }
+  .voice-transcript {
+    margin-top: 12px;
+    max-width: 520px;
+    text-align: center;
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    min-height: 24px;
+    font-weight: 300;
+    letter-spacing: 0.01em;
+  }
+  .voice-transcript .interim { color: var(--text-muted); }
+  .voice-transcript .final { color: var(--text-primary); }
+
+  /* ── Bottom Input ── */
+  .input-bar {
+    height: 56px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 20px 16px;
+    gap: 10px;
+  }
+  .input-wrapper {
+    max-width: 520px;
+    flex:1;
+    height: 44px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    display: flex;
+    align-items: center;
+    padding: 0 6px 0 18px;
+    transition: all 0.25s ease;
+  }
+  .input-wrapper:focus-within {
+    border-color: var(--border-active);
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.08);
+  }
+  .input-wrapper .prompt {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+  .input-wrapper input {
+    flex:1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    padding: 0;
+  }
+  .input-wrapper input::placeholder { color: var(--text-muted); }
+  .input-send {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .input-send:hover { background: #8b5cf6; transform: scale(1.05); }
+
+  .input-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .input-action {
+    width: 44px; height: 44px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .input-action:hover { border-color: var(--border-active); color: var(--text-primary); background: var(--bg-surface); }
+  .input-action.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  /* ── Floating Context Cards (right side) ── */
+  .context-panel {
+    width: 280px;
+    flex-shrink: 0;
+    background: var(--bg-surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    gap: 10px;
+    overflow-y: auto;
+    z-index: 5;
+  }
+
+  .context-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    transition: all 0.2s;
+  }
+  .context-card:hover { border-color: var(--border-active); }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .card-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+  }
+  .card-dot { width:6px; height:6px; border-radius:50%; }
+  .card-dot.active { background:var(--green); }
+  .card-dot.wait { background:var(--warm); }
+
+  .mem-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+  }
+  .mem-item:last-child { border-bottom:none; }
+  .mem-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .tool-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .tool-item .name { color: var(--text-secondary); flex:1; }
+  .tool-item .status { font-size:9px; color: var(--green); }
+  .tool-item .status.running { animation: blink 1s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .waveform-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 24px;
+    margin: 4px 0;
+  }
+  .waveform-bar span {
+    flex:1;
+    background: var(--accent);
+    border-radius: 2px;
+    opacity: 0.6;
+    transition: height 0.08s ease;
+  }
+  .waveform-bar span:nth-child(1) { height:40% }
+  .waveform-bar span:nth-child(2) { height:70% }
+  .waveform-bar span:nth-child(3) { height:55% }
+  .waveform-bar span:nth-child(4) { height:90% }
+  .waveform-bar span:nth-child(5) { height:60% }
+  .waveform-bar span:nth-child(6) { height:85% }
+  .waveform-bar span:nth-child(7) { height:45% }
+  .waveform-bar span:nth-child(8) { height:75% }
+  .waveform-bar span:nth-child(9) { height:50% }
+  .waveform-bar span:nth-child(10){ height:65% }
+</style>
+</head>
+<body>
+
+<!-- Left Icon Nav -->
+<nav class="icon-nav">
+  <div class="brand">✦</div>
+  <div class="nav-item active" title="对话">💬<span class="badge"></span></div>
+  <div class="nav-item" title="语音">🎤</div>
+  <div class="nav-item" title="记忆">◈</div>
+  <div class="nav-item" title="工具">⬡</div>
+  <div class="nav-spacer"></div>
+  <div class="nav-item nav-bottom" title="设置">⚙</div>
+  <div class="nav-item" title="明暗切换">🌙</div>
+</nav>
+
+<!-- Main Area -->
+<div class="main">
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span class="status-indicator"><span class="status-dot online"></span> SYSTEM ACTIVE</span>
+    <span>MODEL qwen-flash</span>
+    <span>ASR FunASR</span>
+    <span>TTS Piper 1.4</span>
+    <span class="spacer"></span>
+    <span class="status-pill active">🔊 朗读中</span>
+    <span class="status-pill">📡 在线</span>
+    <span>⏱ 127H 32M</span>
+  </div>
+
+  <!-- Voice Center Zone -->
+  <div class="voice-zone">
+    <div class="voice-orb listening">
+      <div class="orb-ring"></div>
+      <div class="orb-ring"></div>
+      <span class="orb-icon">🎤</span>
+    </div>
+    <div class="waveform-bar" style="width:280px; margin-top:24px;">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="voice-hint">按住空格键说话 · 松开发送</div>
+    <div class="voice-transcript">
+      <span class="final">今天西安天气怎么样</span>
+    </div>
+  </div>
+
+  <!-- Bottom Input Bar -->
+  <div class="input-bar">
+    <div class="input-wrapper">
+      <span class="prompt">▸</span>
+      <input type="text" placeholder="向 AI Agent 发送消息… (输入 / 调出命令)">
+      <button class="input-send">→</button>
+    </div>
+    <div class="input-actions">
+      <button class="input-action on" title="朗读开关">🔊</button>
+      <button class="input-action" title="明暗切换">🌙</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Right Context Panel -->
+<aside class="context-panel">
+  <div class="context-card">
+    <div class="card-header">
+      <span class="card-label">memory · recall</span>
+      <span class="card-dot active"></span>
+    </div>
+    <div class="mem-item">
+      <span class="mem-tag">用户</span>
+      <span>用户住在西安，经常查询天气和出行信息</span>
+    </div>
+    <div class="mem-item">
+      <span class="mem-tag">偏好</span>
+      <span>偏好简洁的回答风格，不喜欢冗长</span>
+    </div>
+    <div class="mem-item">
+      <span class="mem-tag">设备</span>
+      <span>使用蓝牙耳机，需要增益归一化</span>
+    </div>
+  </div>
+
+  <div class="context-card">
+    <div class="card-header">
+      <span class="card-label">tools · executing</span>
+      <span class="card-dot wait"></span>
+    </div>
+    <div class="tool-item">
+      <span class="name">web_search</span>
+      <span class="status running">→ running</span>
+    </div>
+    <div class="tool-item">
+      <span class="name">recall_memory</span>
+      <span class="status">✓ done</span>
+    </div>
+    <div class="tool-item">
+      <span class="name">speak</span>
+      <span class="status">⌛ queued</span>
+    </div>
+  </div>
+
+  <div class="context-card">
+    <div class="card-header">
+      <span class="card-label">system · health</span>
+      <span class="card-dot active"></span>
+    </div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted);line-height:1.8">
+      CPU <span style="color:var(--green)">12%</span><br>
+      MEM <span style="color:var(--warm)">1.2 GB</span><br>
+      AUDIO <span style="color:var(--blue)">44.1 kHz</span><br>
+      LATENCY <span style="color:var(--accent)">18 ms</span>
+    </div>
+  </div>
+</aside>
+
+</body>
+</html>

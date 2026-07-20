@@ -1,0 +1,263 @@
+import { normalizeChannel, isSystemSignalRow } from './channel.js'
+
+function xmlAttr(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function isCurrentMessageRow(row, currentMsg = null) {
+  return !!currentMsg
+    && row?.role === 'user'
+    && row.from_id === currentMsg.fromId
+    && row.timestamp === currentMsg.timestamp
+    && row.content === currentMsg.content
+}
+
+function formatConversationMetadata({ conversationWindow = [], msg = null, expiredSet = new Set() } = {}) {
+  const rows = (Array.isArray(conversationWindow) ? conversationWindow : []).filter(row => row?.content)
+  if (rows.length === 0) return ''
+
+  const currentRowIndex = rows.findIndex(row => isCurrentMessageRow(row, msg))
+  let lastAssistantBeforeCurrent = -1
+  if (currentRowIndex >= 0) {
+    for (let i = currentRowIndex - 1; i >= 0; i--) {
+      if (rows[i]?.role === 'jarvis') {
+        lastAssistantBeforeCurrent = i
+        break
+      }
+    }
+  }
+
+  const turns = []
+  let prevChannel = ''
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    const isSystemRow = isSystemSignalRow(row)
+    const normalizedChannel = normalizeChannel(row.channel || '')
+    const role = row.role === 'jarvis'
+      ? 'assistant'
+      : (isSystemRow ? 'system_signal' : 'user')
+    const attrs = [
+      `n="${i + 1}"`,
+      `role="${role}"`,
+    ]
+
+    if (isCurrentMessageRow(row, msg)) attrs.push('current="true"')
+    if (i === lastAssistantBeforeCurrent) attrs.push('salience="last_assistant_reply"')
+    if (row.from_id) attrs.push(`from="${xmlAttr(row.from_id)}"`)
+    if (row.to_id) attrs.push(`to="${xmlAttr(row.to_id)}"`)
+    if (row.timestamp) attrs.push(`at="${xmlAttr(row.timestamp)}"`)
+    if (normalizedChannel) attrs.push(`channel="${xmlAttr(normalizedChannel)}"`)
+    if (!isSystemRow && prevChannel && normalizedChannel && prevChannel !== normalizedChannel) {
+      attrs.push(`channel_switched_from="${xmlAttr(prevChannel)}"`)
+    }
+    if (row.focus_topic) attrs.push(`topic="${xmlAttr(row.focus_topic)}"`)
+    if (row.open_question && expiredSet.has(row.id ?? -999)) attrs.push('expired_open_question="true"')
+
+    turns.push(`  <turn ${attrs.join(' ')} />`)
+    if (!isSystemRow && normalizedChannel) prevChannel = normalizedChannel
+  }
+
+  return `<conversation_metadata>
+Use this block only for speaker attribution, time, channel, topic, and current-turn grounding. Do not quote, imitate, or expose these metadata tags in replies.
+If a turn has salience="last_assistant_reply", the current user message most likely responds to that assistant output; ideas in that turn were said by you, not by the user.
+If a turn has expired_open_question="true", that old assistant question is closed; do not answer it retroactively.
+${turns.join('\n')}
+</conversation_metadata>`
+}
+
+export function formatConversationMessage(row, currentMsg = null, prevChannel = '', currentTopic = '', expiredQuestion = false, prevTopic = '') {
+  if (row.role === 'jarvis') {
+    return {
+      role: 'assistant',
+      content: row.content || '',
+    }
+  }
+
+  // Truncate timestamp to minute precision (drop seconds and timezone)
+  const ts = row.timestamp ? row.timestamp.slice(0, 16).replace('T', ' ') : ''
+  const rawChannel = row.channel || currentMsg?.channel || ''
+
+  // 保留 currentMsg 回退语义：row.channel 为空时回退到 currentMsg?.channel（同 rawChannel）。
+  const isSystemSignal = isSystemSignalRow(row, currentMsg?.channel)
+
+  if (isSystemSignal) {
+    const channelLabel = rawChannel ? ` · ${rawChannel}` : ''
+    return {
+      role: 'user',
+      content: `[system signal · ${ts}${channelLabel}]\n${row.content || ''}\n(Respond with tools only. Do NOT call send_message.)`.trim(),
+    }
+  }
+
+  return {
+    role: 'user',
+    content: row.content || '',
+  }
+}
+
+export function formatTaskSteps(taskSteps = []) {
+  if (!taskSteps?.length) return ''
+  const statusIcon = { done: '✓', failed: '✗', skipped: '—', pending: '○' }
+  const lines = taskSteps.map((s, i) => {
+    const icon = statusIcon[s.status] || '○'
+    const note = s.note ? ` (${s.note})` : ''
+    return `  ${i + 1}. [${icon}] ${s.text}${note}`
+  })
+  const done = taskSteps.filter(s => s.status === 'done').length
+  const total = taskSteps.length
+  return `Task step progress (${done}/${total}):\n${lines.join('\n')}`
+}
+
+export function buildRuntimeContextMessages({ recentActions = [], actionLog = [], lastToolResult = null, taskSteps = [], batteryBlock = '', conversationMetadata = '' } = {}) {
+  const parts = []
+
+  if (conversationMetadata) {
+    parts.push(conversationMetadata)
+  }
+
+  if (batteryBlock) {
+    parts.push(batteryBlock)
+  }
+
+  if (taskSteps?.length > 0) {
+    parts.push(formatTaskSteps(taskSteps))
+  }
+
+  if (recentActions?.length > 0) {
+    const lines = recentActions.map(item => `- ${item.ts?.slice(11, 16) || ''} ${item.summary || ''}`).join('\n')
+    parts.push(`Recent assistant actions:\n${lines}\nAvoid immediately repeating the same action unless the current user message asks for it.`)
+  }
+
+  if (actionLog?.length > 0) {
+    const lines = actionLog.slice(-10).map(item => {
+      const time = item.timestamp?.slice(11, 16) || ''
+      const detail = item.detail ? `\n  ${item.detail}` : ''
+      return `- ${time} ${item.tool || ''} · ${item.summary || ''}${detail}`
+    }).join('\n')
+    parts.push(`Recent tool/action log:\n${lines}\nUse this as runtime context only. Do not repeat completed actions unless the current task requires it.`)
+  }
+
+  if (lastToolResult) {
+    const argsSummary = Object.entries(lastToolResult.args || {})
+      .map(([key, value]) => `${key}=${String(value).slice(0, 60)}`)
+      .join(', ')
+    const resultPreview = String(lastToolResult.result || '').slice(0, 500)
+    parts.push(`Previous tool result:\n${lastToolResult.name}(${argsSummary}) ->\n${resultPreview}\nAbsorb this result before deciding the next step.`)
+  }
+
+  if (parts.length === 0) return []
+  return [{
+    role: 'user',
+    content: `[runtime context]\n${parts.join('\n\n')}`,
+  }]
+}
+
+// P0-2：判断 conversationWindow 里某条 open_question 是否已"过期"。
+//   过期条件：
+//     1. 距今超过 N 条非 SYSTEM 消息且用户从未直接接茬这条问题
+//   Topic tags are deliberately not used as a hard expiry signal. They are
+//   heuristic bookkeeping and can be wrong on short/elliptical voice turns.
+//   "直接接茬"的简化判定：紧跟这条 jarvis 行之后的下一条 user 消息长度 >= 6 字
+//   且至少含 1 个中英文实词字符；极短回应（嗯/好/可以）不算接茬。
+const EXPIRED_FOLLOWUP_DISTANCE = 4
+function computeExpiredFollowupSet(rows, currentTopic) {
+  const expired = new Set()
+  if (!Array.isArray(rows)) return expired
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    if (!row || row.role !== 'jarvis' || !row.open_question) continue
+    // 1. 看紧跟的下一条 user 消息
+    let nextUser = null
+    for (let j = i + 1; j < rows.length; j++) {
+      if (rows[j]?.role === 'user' && (rows[j].from_id || '') !== 'SYSTEM') {
+        nextUser = rows[j]; break
+      }
+    }
+    const engaged = nextUser
+      && typeof nextUser.content === 'string'
+      && nextUser.content.replace(/\s+/g, '').length >= 6
+    if (engaged) continue
+    // 2. 距今 >= N 条对话
+    const distance = rows.length - 1 - i
+    const farEnough = distance >= EXPIRED_FOLLOWUP_DISTANCE
+    if (farEnough) expired.add(row.id ?? i)
+  }
+  return expired
+}
+
+export function buildLLMMessages({ systemPrompt, contextBlock = '', conversationWindow = [], input, msg = null, recentActions = [], actionLog = [], lastToolResult = null, taskSteps = [], batteryBlock = '', currentTopic = '', isTick = false }) {
+  const messages = [{ role: 'system', content: systemPrompt }]
+
+  const rows = Array.isArray(conversationWindow) ? conversationWindow : []
+
+  // P0-2：先扫一遍找出所有"过期未答悬念"
+  const expiredSet = computeExpiredFollowupSet(rows, currentTopic)
+  const conversationMetadata = formatConversationMetadata({ conversationWindow: rows, msg, expiredSet })
+  messages.push(...buildRuntimeContextMessages({ recentActions, actionLog, lastToolResult, taskSteps, batteryBlock, conversationMetadata }))
+
+  // Track which message in the array should receive this round's <context> block:
+  // it's the last user-role message representing the "current" turn — either the
+  // matched row from conversationWindow (when msg is already persisted to db) or
+  // the appended fallback message below (TICK / unmatched cases).
+  let currentMessageIndex = -1
+
+  for (const row of rows) {
+    if (!row?.content) continue
+    const isCurrent = isCurrentMessageRow(row, msg)
+    const formatted = formatConversationMessage(row, msg)
+    if (!formatted.content) continue
+    messages.push(formatted)
+    if (isCurrent) currentMessageIndex = messages.length - 1
+  }
+
+  const hasCurrentMessage = currentMessageIndex >= 0
+
+  // 显著度锚点：找出"紧挨着当前用户消息之前的那条 jarvis 回复"。
+  //   接追问 / 指代消解的核心信号——历史窗口里这条本就在，但和更早的若干条混在一起没有
+  //   区分度。用户当前这句（"继续 / 那个 / 再来一个 / 这个呢"）绝大多数是在回应/承接「这一条」，
+  //   而不是窗口里更早的某句。具体提示放在 <conversation_metadata>，不再写进 assistant 正文。
+  //   只在确实存在上一条回复（= 进行中的对话）时才标，首条消息无可锚定。
+  let priorReplyIndex = -1
+  if (hasCurrentMessage) {
+    for (let i = currentMessageIndex - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant') { priorReplyIndex = i; break }
+    }
+  }
+
+  if (!hasCurrentMessage) {
+    // TICK 心跳路径：fallback 消息会以 role:'user' 注入，结构上跟真用户消息没区别。
+    // 不加 marker 时模型会把 "TICK 2026-..." 当成用户在重新发问，于是反复回答自己上一轮
+    // 提的 open_question，出现自问自答。这里显式标 [heartbeat tick]、注明非用户消息、
+    // 禁止回放历史问题，与下面 system signal 的 marker 待遇对齐。
+    const fallbackContent = isTick
+      ? `[heartbeat tick · no new user message]\n${input}\n(This is an internal heartbeat, NOT a user message. Do NOT treat it as the user re-asking a prior question or responding to your previous open question. Decide whether to act proactively per the directions above, or stay silent — both are valid.)`
+      : input
+    messages.push({
+      role: 'user',
+      content: fallbackContent,
+    })
+    currentMessageIndex = messages.length - 1
+  }
+
+  // 复合意图 + 指代的即时提醒：贴在当前用户消息「原话之后」，靠 recency 把模型的注意力
+  //   从前面那一大块 <context> 背景拉回到这一句真正的诉求上。只在进行中的对话里加（有上一条
+  //   回复时），首条消息交给系统提示里的常驻规则即可，避免每轮无谓加料。非 TICK。
+  if (priorReplyIndex >= 0 && !isTick && currentMessageIndex >= 0) {
+    messages[currentMessageIndex].content +=
+      `\n[intent check · in <think>: (1) resolve every pronoun/ellipsis here ("继续/那个/这个呢/再来一个/换一个") against your last reply and the exchange just above, before reaching for older context; (2) list EVERY distinct request this one message carries — finish all of them this turn, not just the first; (3) name the WANT under the words — the outcome that ends their need — and answer that, not the literal grammar (a question is usually "do it"; a complaint is "fix it"; terse/urgent typing means lead with the result, no preamble).]`
+  }
+
+  // Prepend this round's <context>...</context> to the current user message.
+  // The block is NOT persisted to db — conversations are written from the raw
+  // user content (see queue.pushMessage) and assistant outputs are stored
+  // verbatim, so the next round's conversationWindow stays clean.
+  if (contextBlock && currentMessageIndex >= 0) {
+    const target = messages[currentMessageIndex]
+    target.content = `${contextBlock}\n\n${target.content || ''}`
+  }
+
+  return messages
+}

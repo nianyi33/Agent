@@ -1,0 +1,111 @@
+{
+  "name": "ai-agent",
+  "productName": "AI_Agent",
+  "version": "0.1.6",
+  "description": "A local-first desktop AI agent",
+  "type": "module",
+  "main": "src/index.js",
+  "author": {
+    "name": "xiaoyuanda666-ship-it"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.0.0",
+    "@kutalia/whisper-node-addon": "^1.1.0",
+    "@larksuiteoapi/node-sdk": "^1.70.0",
+    "better-sqlite3": "^12.8.0",
+    "d3": "^7.9.0",
+    "electron-updater": "^6.3.9",
+    "openai": "^6.34.0",
+    "sherpa-onnx-node": "^1.13.3",
+    "undici": "^6.27.0",
+    "wechat-ilink-client": "^0.1.0",
+    "ws": "^8.20.1"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "scripts": {
+    "start": "electron .",
+    "start:backend": "node --env-file=.env src/index.js",
+    "build:npm": "node ./node_modules/@electron/rebuild/lib/cli.js -f -w better-sqlite3 -v 33.4.11 && electron-builder --win",
+    "build": "node scripts/build-win.mjs",
+    "build:portable": "electron-builder --win --dir -c.win.signAndEditExecutable=false",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.aiagent.desktop",
+    "productName": "AI_Agent",
+    "artifactName": "${productName}-Setup-${version}.${ext}",
+    "npmRebuild": true,
+    "forceCodeSigning": false,
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**",
+      "**/node_modules/@huggingface/transformers/**",
+      "**/node_modules/onnxruntime-node/**",
+      "**/node_modules/sherpa-onnx-node/**",
+      "**/node_modules/sherpa-onnx-win-x64/**",
+      "build/native-speech-recognizer",
+      "build/piper/**",
+      "build/whisper-model/**",
+      "src/voice/funasr_server.py",
+      "src/voice/piper_tts_bridge.py",
+      "src/ui/brain-ui/voice-core.js"
+    ],
+    "files": [
+      "src/voice/funasr_server.py",
+      "src/voice/piper_tts_bridge.py",
+      "src/ui/brain-ui/voice-core.js",
+      "build/piper/**",
+      "build/whisper-model/**",
+      "electron/**/*",
+      "src/**/*",
+      "index.html",
+      "brain-ui.html",
+      "activation.html",
+      "focus-banner.html",
+      "package.json",
+      "build/icon.ico",
+      "build/icon.png",
+      "music/**/*",
+      "skills/**/*",
+      "tts_server/**/*",
+      "scripts/seed-memories.js",
+      "!**/*.map",
+      "!src/test-*",
+      "!src/**/test-*"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false,
+      "installerHeaderIcon": "build/installerHeaderIcon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AI Agent"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "nianyi33",
+      "repo": "Agent"
+    }
+  }
+}

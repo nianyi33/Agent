@@ -1,0 +1,85 @@
+<h2>AI Agent 科技风格重设计 — 视觉方向</h2>
+<p class="subtitle">三种方向，选一个作为整个 UI 的基调。所有方案都 <strong>不用毛玻璃</strong>，走硬朗科技路线。</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0">
+        <div class="mockup-body">
+          <div style="background:#0a0e14;padding:20px;border:1px solid #2dd4bf;border-radius:6px">
+            <div style="font-family:monospace;font-size:11px;color:#2dd4bf;margin-bottom:12px">AI_AGENT v0.2.0 // STATUS: ONLINE</div>
+            <div style="font-family:monospace;font-size:13px;color:#e0e6ed;margin-bottom:6px">&gt; 你好，我能帮你做什么？</div>
+            <div style="font-family:monospace;font-size:12px;color:#64748b;margin-bottom:16px">今天西安天气晴朗，32度，适合出行。</div>
+            <div style="display:flex;gap:8px">
+              <div style="flex:1;background:#0d1219;border:1px solid #1a2a3a;border-radius:4px;padding:8px 12px">
+                <span style="font-size:12px;color:#334155">向 AI Agent 发送消息…</span>
+              </div>
+              <div style="width:36px;height:36px;border:1px solid #2dd4bf;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#2dd4bf;font-size:16px">🎤</div>
+              <div style="width:36px;height:36px;border:1px solid #1a2a3a;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:14px">→</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — 极简终端</h3>
+      <p>深黑底色 + 单色青绿高亮（#2dd4bf）。极细线框，无渐变无阴影。JetBrains Mono 全局等宽字体。像 SpaceX 控制台 / VS Code 暗色终端的混合体。</p>
+      <p style="font-size:0.85em;color:var(--ink2)">关键词：克制、精密、命令行美学</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0">
+        <div class="mockup-body">
+          <div style="background:linear-gradient(135deg, #0a0a0f 0%, #141428 100%);padding:20px;border:1px solid #7c3aed;border-radius:6px;box-shadow:0 0 20px rgba(124,58,237,0.1)">
+            <div style="font-size:14px;color:#a78bfa;margin-bottom:12px;font-weight:600">✦ AI AGENT</div>
+            <div style="font-size:13px;color:#e0e0e0;margin-bottom:6px"><span style="color:#f59e0b">用户 &gt;</span> 你好，我能帮你做什么？</div>
+            <div style="font-size:12px;color:#a0a0b0;margin-bottom:16px"><span style="color:#a78bfa">Agent &gt;</span> 今天西安天气晴朗，32度，适合出行。</div>
+            <div style="display:flex;gap:8px">
+              <div style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(124,58,237,0.2);border-radius:4px;padding:8px 12px">
+                <span style="font-size:12px;color:#555">输入消息…</span>
+              </div>
+              <div style="width:36px;height:36px;border:1px solid #7c3aed;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#a78bfa;font-size:16px">🎤</div>
+              <div style="width:36px;height:36px;border:1px solid #f59e0b;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#f59e0b;font-size:14px">→</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — 深紫星空</h3>
+      <p>深空背景 + 蓝紫渐变 + 金色点缀。圆角卡片，柔和发光边框。字体混排（Inter 正文 + JetBrains Mono 数据）。像科幻飞船控制面板 + 暗色 Notion 的融合。</p>
+      <p style="font-size:0.85em;color:var(--ink2)">关键词：科技感、层次感、高级暗色</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0">
+        <div class="mockup-body">
+          <div style="background:#0c0c0c;padding:20px;border:1px solid #333;border-radius:4px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <div style="font-family:monospace;font-size:12px;color:#00ff00">AI_AGENT.SYS</div>
+              <div style="font-family:monospace;font-size:10px;color:#00ff00">UPTIME: 127H 32M</div>
+            </div>
+            <div style="font-family:monospace;font-size:12px;color:#ccc;margin-bottom:6px">[USER] 你好，能帮我做什么？</div>
+            <div style="font-family:monospace;font-size:12px;color:#00ff00;margin-bottom:16px">[AGENT] 今天西安天气晴朗，32度，适合出行。</div>
+            <div style="display:flex;gap:8px">
+              <div style="flex:1;background:#111;border:1px solid #333;padding:8px 12px">
+                <span style="font-family:monospace;font-size:12px;color:#555">INPUT&gt;</span>
+              </div>
+              <div style="width:36px;height:36px;border:1px solid #00ff00;display:flex;align-items:center;justify-content:center;color:#00ff00;font-size:16px">🎤</div>
+              <div style="width:36px;height:36px;border:1px solid #333;display:flex;align-items:center;justify-content:center;color:#555;font-size:14px">→</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — 绿色终端</h3>
+      <p>纯黑底 + 单色荧光绿（#00ff00）。全面 CRT 终端风格，扫描线纹理。像老式大型机终端 / 黑客电影界面。字体统一等宽。</p>
+      <p style="font-size:0.85em;color:var(--ink2)">关键词：复古未来、命令行原生、极客风</p>
+    </div>
+  </div>
+</div>

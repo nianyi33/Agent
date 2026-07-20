@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>AI Agent — Quantum Orb + Chat</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+  --glow-cyan: #4fd8ff;
+  --glow-cyan-dim: rgba(79,216,255,0.35);
+  --glow-amber: #ffb454;
+  --glow-amber-dim: rgba(255,180,84,0.3);
+  --gray-000: #06060c;
+  --gray-050: #0a0a14;
+  --gray-100: #12121e;
+  --gray-200: #1a1a2a;
+  --gray-300: #2a2a3d;
+  --gray-400: #4a4a5e;
+  --gray-500: #6d6d82;
+  --gray-600: #9494a8;
+  --gray-700: #c4c4d4;
+  --gray-800: #e4e4ee;
+  --panel-glass: rgba(14,14,26,0.82);
+  --font-ui: 'Inter', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* { box-sizing:border-box; margin:0; padding:0; }
+body {
+  width:100vw; height:100vh; overflow:hidden;
+  background:
+    radial-gradient(ellipse 120% 90% at 30% 0%, #0d1020 0%, transparent 55%),
+    radial-gradient(ellipse 100% 80% at 85% 100%, #0a0f18 0%, transparent 50%),
+    var(--gray-000);
+  font-family: var(--font-ui); color: var(--gray-700);
+  display:flex; position:relative;
+}
+
+/* Background layers */
+.grid-overlay {
+  position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image:
+    linear-gradient(rgba(120,140,200,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120,140,200,0.03) 1px, transparent 1px);
+  background-size:48px 48px;
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 30%, black 0%, transparent 75%);
+}
+.scanline { position:fixed; left:0; right:0; height:2px; z-index:1; pointer-events:none; background:linear-gradient(90deg,transparent,var(--glow-cyan-dim),transparent); animation:scan 8s linear infinite; opacity:0.45; }
+@keyframes scan { 0%{top:-2px} 100%{top:100vh} }
+
+/* ── Left Nav ── */
+.nav { width:56px; flex-shrink:0; z-index:10; background:rgba(10,10,20,0.8); backdrop-filter:blur(16px); border-right:0.5px solid var(--gray-300); display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:4px; }
+.nav .brand { font-size:18px; margin-bottom:18px; cursor:pointer; color:var(--gray-500); transition:0.2s; }
+.nav .brand:hover { color:var(--glow-cyan); }
+.ni { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:15px; cursor:pointer; border:0.5px solid transparent; color:var(--gray-500); transition:0.18s; position:relative; }
+.ni:hover { background:var(--gray-200); border-color:var(--gray-300); color:var(--gray-600); }
+.ni.sel { background:rgba(79,216,255,0.06); border-color:var(--glow-cyan-dim); color:var(--glow-cyan); box-shadow:0 0 12px rgba(79,216,255,0.12); }
+.ni .badge { position:absolute; top:6px; right:6px; width:5px; height:5px; border-radius:50%; background:var(--glow-cyan); }
+.nav-spacer { flex:1; }
+
+/* ── Sidebar with Orb ── */
+.sidebar { width:240px; flex-shrink:0; z-index:5; background:rgba(10,10,18,0.6); backdrop-filter:blur(12px); border-right:0.5px solid var(--gray-300); display:flex; flex-direction:column; padding:20px 16px; overflow-y:auto; }
+.sidebar .brand-name { font-size:13px; font-weight:600; color:var(--gray-800); margin-bottom:2px; }
+.sidebar .brand-sub { font-size:10px; color:var(--gray-500); font-family:var(--font-mono); letter-spacing:1px; }
+.sidebar .divider { width:24px; height:0.5px; background:var(--gray-300); margin:12px 0; }
+
+.ai-status {
+  display:flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:10px; color:var(--gray-600);
+  padding:8px 10px; margin:12px 0; background:rgba(255,255,255,0.02); border:0.5px solid var(--gray-300); border-radius:8px;
+}
+.status-dot { width:5px; height:5px; border-radius:50%; background:var(--glow-cyan); box-shadow:0 0 6px var(--glow-cyan); animation:pulse-dot 2s infinite; }
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* Orb container */
+.orb-wrap { position:relative; height:160px; margin:8px 0 14px; display:flex; justify-content:center; align-items:center; }
+#orbCanvas { position:absolute; width:160px; height:160px; z-index:2; pointer-events:none; }
+
+.hud-frame { position:absolute; width:160px; height:160px; pointer-events:none; z-index:3; }
+.hud-corner { position:absolute; width:12px; height:12px; border:1px solid var(--glow-cyan-dim); opacity:0.6; }
+.hud-corner.tl { top:-5px; left:-5px; border-right:none; border-bottom:none; }
+.hud-corner.tr { top:-5px; right:-5px; border-left:none; border-bottom:none; }
+.hud-corner.bl { bottom:-5px; left:-5px; border-right:none; border-top:none; }
+.hud-corner.br { bottom:-5px; right:-5px; border-left:none; border-top:none; }
+
+.orb-label { font-family:var(--font-mono); font-size:8px; color:var(--gray-500); text-align:center; letter-spacing:0.5px; margin-top:-14px; z-index:4; position:relative; }
+
+/* Sidebar content */
+.section-label { font-size:9px; font-family:var(--font-mono); color:var(--gray-500); letter-spacing:1.2px; text-transform:uppercase; margin:12px 0 8px; }
+.memory-legend { position:relative; padding-left:12px; margin-bottom:16px; }
+.memory-legend::before { content:''; position:absolute; left:2px; top:2px; bottom:2px; width:0.5px; background:linear-gradient(to bottom,var(--glow-cyan-dim),var(--gray-300) 60%,transparent); }
+.memory-node { position:relative; padding:4px 0 4px 10px; font-size:10px; color:var(--gray-600); }
+.memory-node::before { content:''; position:absolute; left:-13px; top:8px; width:4px; height:4px; border-radius:50%; background:var(--gray-400); }
+.memory-node.active { color:var(--gray-800); }
+.memory-node.active::before { background:var(--glow-cyan); box-shadow:0 0 5px var(--glow-cyan); }
+
+/* ── Main ── */
+.main { flex:1; display:flex; flex-direction:column; min-width:0; z-index:5; }
+.topbar { height:40px; flex-shrink:0; display:flex; align-items:center; padding:0 20px; gap:16px; border-bottom:0.5px solid var(--gray-300); font-family:var(--font-mono); font-size:10px; color:var(--gray-500); background:rgba(10,10,20,0.5); backdrop-filter:blur(8px); }
+.topbar .spacer { flex:1; }
+.top-dot { width:6px; height:6px; border-radius:50%; background:var(--glow-cyan); box-shadow:0 0 6px var(--glow-cyan); }
+.top-pill { font-size:9px; padding:3px 10px; border-radius:999px; border:0.5px solid var(--gray-300); color:var(--gray-500); cursor:pointer; transition:0.2s; }
+.top-pill:hover { border-color:var(--gray-400); color:var(--gray-600); }
+.top-pill.on { border-color:var(--glow-cyan-dim); color:var(--glow-cyan); background:rgba(79,216,255,0.04); }
+
+/* Body: conversation list + chat */
+.body { flex:1; display:flex; overflow:hidden; }
+
+.convs { width:250px; flex-shrink:0; display:flex; flex-direction:column; gap:2px; padding:12px; overflow-y:auto; border-right:0.5px solid var(--gray-300); background:rgba(10,10,18,0.3); }
+.convs-label { font-family:var(--font-mono); font-size:9px; text-transform:uppercase; letter-spacing:0.14em; color:var(--gray-500); margin-bottom:8px; padding-left:4px; }
+.cv { padding:9px 12px; border-radius:10px; cursor:pointer; border:0.5px solid transparent; transition:0.15s; }
+.cv:hover { background:var(--gray-200); border-color:var(--gray-300); }
+.cv.sel { background:rgba(79,216,255,0.04); border-color:var(--glow-cyan-dim); }
+.cv .t { font-size:12px; font-weight:500; color:var(--gray-700); margin-bottom:2px; }
+.cv .m { font-family:var(--font-mono); font-size:9px; color:var(--gray-500); }
+.cv .p { font-size:10px; color:var(--gray-600); margin-top:3px; line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* Chat area */
+.chat { flex:1; overflow-y:auto; padding:24px 28px; display:flex; flex-direction:column; gap:18px; }
+.chat::-webkit-scrollbar { width:4px; }
+.chat::-webkit-scrollbar-thumb { background:var(--gray-300); border-radius:4px; }
+.msg { max-width:76%; animation:msgIn 0.3s ease-out; }
+@keyframes msgIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+.msg.user { align-self:flex-end; }
+.msg.agent { align-self:flex-start; }
+.msg .body { padding:11px 15px; border-radius:14px; font-size:13px; line-height:1.65; }
+.msg.user .body { background:var(--gray-200); border:0.5px solid var(--gray-300); border-bottom-right-radius:4px; color:var(--gray-700); }
+.msg.agent .body { background:rgba(79,216,255,0.04); border:0.5px solid var(--glow-cyan-dim); border-bottom-left-radius:4px; color:var(--gray-700); }
+.msg .meta { display:flex; align-items:center; gap:8px; margin-top:6px; font-family:var(--font-mono); font-size:10px; color:var(--gray-500); }
+.msg .actions { display:flex; gap:4px; margin-left:auto; }
+.msg .act { font-size:9px; padding:4px 8px; border-radius:6px; border:0.5px solid var(--gray-300); background:transparent; color:var(--gray-500); cursor:pointer; transition:0.15s; }
+.msg .act:hover { border-color:var(--glow-cyan-dim); color:var(--glow-cyan); }
+
+.thinking { display:flex; align-items:center; gap:8px; padding:12px 16px; border-radius:14px; border-bottom-left-radius:4px; background:rgba(79,216,255,0.03); border:0.5px solid var(--glow-cyan-dim); max-width:180px; font-size:12px; color:var(--gray-500); }
+.thinking .dots { display:flex; gap:3px; }
+.thinking .dots span { width:5px; height:5px; border-radius:50%; background:var(--glow-cyan); animation:think 1.4s infinite; }
+.thinking .dots span:nth-child(2){ animation-delay:0.2s; }
+.thinking .dots span:nth-child(3){ animation-delay:0.4s; }
+@keyframes think { 0%,60%,100%{ opacity:0.2; scale:0.8; } 30%{ opacity:1; scale:1; } }
+
+/* ── Right Assets ── */
+.ctx { width:230px; flex-shrink:0; display:flex; flex-direction:column; gap:8px; padding:12px; overflow-y:auto; border-left:0.5px solid var(--gray-300); background:rgba(10,10,18,0.3); }
+.cx { background:var(--panel-glass); backdrop-filter:blur(12px); border:0.5px solid var(--gray-300); border-radius:10px; padding:10px 12px; transition:0.2s; position:relative; }
+.cx:hover { border-color:var(--gray-400); }
+.cx::before { content:''; position:absolute; top:6px; right:6px; width:3px; height:3px; border-radius:50%; background:var(--glow-cyan); opacity:0.4; }
+.cx-h { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+.cx-l { font-family:var(--font-mono); font-size:8px; text-transform:uppercase; letter-spacing:0.12em; color:var(--gray-500); }
+.cx-d { width:5px; height:5px; border-radius:50%; }
+.cx-d.live { background:var(--glow-cyan); }
+.cx-d.wait { background:var(--glow-amber); }
+.cx-i { font-size:10px; color:var(--gray-600); padding:3px 0; border-bottom:0.5px solid rgba(255,255,255,0.03); line-height:1.5; display:flex; align-items:flex-start; gap:7px; }
+.cx-i:last-child { border-bottom:none; }
+.cx-tag { font-family:var(--font-mono); font-size:7px; padding:2px 6px; border-radius:4px; background:rgba(79,216,255,0.08); color:var(--glow-cyan); white-space:nowrap; flex-shrink:0; margin-top:1px; }
+.cx-mono { font-family:var(--font-mono); font-size:9px; color:var(--gray-500); line-height:1.8; }
+.cx-mono .v { color:var(--gray-600); }
+.cx-stat { display:flex; align-items:center; gap:8px; padding:1px 0; }
+.cx-stat-bar { flex:1; height:3px; border-radius:2px; background:var(--gray-300); overflow:hidden; }
+.cx-stat-bar .fill { height:100%; border-radius:2px; background:var(--glow-cyan); }
+
+/* ── Input ── */
+.input-zone { flex-shrink:0; padding:10px 24px 16px; }
+.input-row { display:flex; gap:8px; align-items:center; background:var(--panel-glass); backdrop-filter:blur(20px); border:0.5px solid var(--gray-300); border-radius:16px; padding:6px 8px 6px 16px; transition:0.25s; }
+.input-row:focus-within { border-color:var(--glow-cyan-dim); box-shadow:0 0 0 3px rgba(79,216,255,0.06), 0 0 20px rgba(79,216,255,0.06); }
+.input-prompt { font-family:var(--font-mono); font-size:11px; color:var(--glow-cyan); flex-shrink:0; opacity:0.7; }
+.input-row textarea { flex:1; background:transparent; border:none; outline:none; resize:none; color:var(--gray-700); font-size:13px; padding:4px 0; min-height:22px; max-height:80px; }
+.input-row textarea::placeholder { color:var(--gray-500); }
+.ib { width:36px; height:36px; border-radius:50%; border:0.5px solid var(--gray-300); background:transparent; color:var(--gray-500); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:0.2s; }
+.ib:hover { border-color:var(--gray-400); color:var(--gray-600); }
+.ib.on { border-color:var(--glow-amber-dim); color:var(--glow-amber); background:rgba(255,180,84,0.06); }
+.ib.send { background:linear-gradient(135deg,var(--glow-cyan),#2a6fa8); border:none; color:#04121a; font-size:13px; }
+.ib.send:hover { box-shadow:0 0 14px var(--glow-cyan-dim); }
+</style>
+</head>
+<body>
+
+<div class="grid-overlay"></div>
+<div class="scanline"></div>
+
+<!-- Nav -->
+<nav class="nav">
+  <div class="brand">⬢</div>
+  <div class="ni sel">💬<span class="badge"></span></div>
+  <div class="ni">◈</div>
+  <div class="ni">⬡</div>
+  <div class="ni">⊞</div>
+  <div class="nav-spacer"></div>
+  <div class="ni">⚙</div>
+  <div class="ni">🌙</div>
+</nav>
+
+<!-- Sidebar with orb -->
+<div class="sidebar">
+  <div class="brand-name">AI AGENT</div>
+  <div class="brand-sub">QUANTUM CORE v2.5</div>
+
+  <div class="ai-status">
+    <span class="status-dot"></span> CORE 矩阵量子云就绪
+  </div>
+
+  <div class="orb-wrap">
+    <canvas id="orbCanvas"></canvas>
+    <div class="hud-frame">
+      <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+      <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+    </div>
+  </div>
+  <div class="orb-label">OUTER 800 · INNER 300 · FIBONACCI</div>
+
+  <div class="divider"></div>
+
+  <div class="section-label">记忆拓扑</div>
+  <div class="memory-legend">
+    <div class="memory-node active">短期上下文 · 12 条</div>
+    <div class="memory-node">语义记忆 · 348 条</div>
+    <div class="memory-node">用户画像 · 已同步</div>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <span class="top-dot"></span> AI AGENT · 就绪
+    <span class="spacer"></span>
+    <span>qwen-flash</span>
+    <span>⏱ 127H</span>
+    <span class="top-pill on">🔊 TTS 开</span>
+    <span class="top-pill">FunASR</span>
+    <span>aliyun</span>
+  </div>
+
+  <div class="body">
+    <div class="convs">
+      <div class="convs-label">会话</div>
+      <div class="cv sel"><div class="t">西安今日天气</div><div class="m">今天 16:23</div><div class="p">西安晴天32°C湿度适中…</div></div>
+      <div class="cv"><div class="t">如何使用语音功能</div><div class="m">昨天 14:05</div><div class="p">按住空格键或点击按钮…</div></div>
+      <div class="cv"><div class="t">安装 FunASR 依赖</div><div class="m">7月15日</div><div class="p">一键安装完成就绪…</div></div>
+      <div class="cv"><div class="t">配置阿里云 API</div><div class="m">7月14日</div><div class="p">Key配置完成ASR+TTS…</div></div>
+    </div>
+
+    <div class="chat">
+      <div class="msg user"><div class="body">今天西安天气怎么样</div><div class="meta">16:23:04</div></div>
+      <div class="msg agent">
+        <div class="thinking"><div class="dots"><span></span><span></span><span></span></div><span>分析中…</span></div>
+      </div>
+      <div class="msg agent">
+        <div class="body">西安今天晴天，气温 <strong style="color:var(--glow-amber)">32°C</strong>，湿度 45%，西北风 2-3 级。空气质量良好<span style="color:var(--glow-cyan)"> ●</span>，适合户外活动。</div>
+        <div class="meta">16:23:08 <span class="actions"><button class="act">🔊 朗读</button><button class="act">📋</button><button class="act">↩</button></span></div>
+      </div>
+      <div class="msg user"><div class="body">那明天呢</div><div class="meta">16:23:12</div></div>
+      <div class="msg agent">
+        <div class="body">明天西安多云转阴，气温 <strong style="color:var(--glow-amber)">28°C</strong>，傍晚可能有<span style="color:var(--glow-amber)">阵雨</span>，建议带伞。</div>
+        <div class="meta">16:23:15 <span class="actions"><button class="act">🔊 朗读</button><button class="act">📋</button><button class="act">↩</button></span></div>
+      </div>
+    </div>
+
+    <div class="ctx">
+      <div class="cx"><div class="cx-h"><span class="cx-l">Memory</span><span class="cx-d live"></span></div>
+        <div class="cx-i"><span class="cx-tag">用户</span>住在西安，经常查询天气</div>
+        <div class="cx-i"><span class="cx-tag">偏好</span>简短风格</div>
+        <div class="cx-i"><span class="cx-tag">设备</span>蓝牙耳机，增益补偿</div>
+      </div>
+      <div class="cx"><div class="cx-h"><span class="cx-l">Engine</span><span class="cx-d live"></span></div>
+        <div class="cx-mono">ASR <span class="v" style="color:var(--glow-cyan)">FunASR</span><br>TTS <span class="v" style="color:var(--glow-cyan)">阿里云 Cherry</span><br>LLM <span class="v">qwen-flash</span></div>
+      </div>
+      <div class="cx"><div class="cx-h"><span class="cx-l">Metrics</span><span class="cx-d live"></span></div>
+        <div class="cx-stat"><span style="font-size:9px;font-family:monospace;color:var(--gray-500);width:30px">CPU</span><div class="cx-stat-bar"><div class="fill" style="width:12%"></div></div><span style="font-size:9px;font-family:monospace;color:var(--gray-600)">12%</span></div>
+        <div class="cx-stat"><span style="font-size:9px;font-family:monospace;color:var(--gray-500);width:30px">MEM</span><div class="cx-stat-bar"><div class="fill" style="width:42%"></div></div><span style="font-size:9px;font-family:monospace;color:var(--gray-600)">1.1G</span></div>
+        <div class="cx-stat"><span style="font-size:9px;font-family:monospace;color:var(--gray-500);width:30px">AUD</span><div class="cx-stat-bar"><div class="fill" style="width:28%;background:var(--glow-amber)"></div></div><span style="font-size:9px;font-family:monospace;color:var(--gray-600)">-12dB</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-zone">
+    <div class="input-row">
+      <span class="input-prompt">▸</span>
+      <textarea rows="1" placeholder="向 AI Agent 发送消息… (输入 / 调命令 · Shift+Enter 换行)"></textarea>
+      <button class="ib on" title="朗读开关">🔊</button>
+      <button class="ib" id="micBtn" title="按住说话">🎤</button>
+      <button class="ib send">→</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── FIBONACCI 3D PARTICLE ORB ───
+const canvas = document.getElementById('orbCanvas');
+const ctx2 = canvas.getContext('2d');
+const size = 160;
+canvas.width = size * Math.min(window.devicePixelRatio, 2);
+canvas.height = size * Math.min(window.devicePixelRatio, 2);
+ctx2.scale(Math.min(window.devicePixelRatio, 2), Math.min(window.devicePixelRatio, 2));
+
+let particles = [];
+const N_OUTER = 800, N_INNER = 300;
+const GA = Math.PI * (3 - Math.sqrt(5));
+let time = 0;
+let voiceActivated = false;
+
+for(let i=0; i<N_OUTER; i++){
+  let z = 1 - (2*i)/(N_OUTER-1), r = Math.sqrt(1-z*z), th = i*GA;
+  particles.push({ x:r*Math.cos(th), y:r*Math.sin(th), z, layer:'outer' });
+}
+for(let i=0; i<N_INNER; i++){
+  let z = 1 - (2*i)/(N_INNER-1), r = Math.sqrt(1-z*z)*0.88, th = i*GA;
+  particles.push({ x:r*Math.cos(th), y:r*Math.sin(th), z:z*0.88, layer:'inner' });
+}
+
+function noise(x,y,z,t){ return Math.sin(x*2.3+t*1.1)*Math.cos(y*1.9+t*0.8)*.38+Math.sin(y*3.1+t*1.4)*Math.cos(z*2.7+t*0.6)*.3+Math.sin(z*1.7+t*0.9)*Math.cos(x*3.3+t*1.2)*.3+Math.sin(x*5.1+y*4.3+t*2.1)*.14; }
+
+function render(){
+  ctx2.clearRect(0,0,size,size);
+  const cx=80, cy=80, baseR=50;
+  time += voiceActivated ? 0.08 : 0.015;
+  let cY=Math.cos(time*0.015), sY=Math.sin(time*0.015);
+  let cX=Math.cos(0.2), sX=Math.sin(0.2);
+  let projected = [];
+
+  particles.forEach(p=>{
+    let x1=p.x*cY-p.z*sY, z1=p.z*cY+p.x*sY, y1=p.y;
+    let y2=y1*cX-z1*sX, z2=z1*cX+y1*sX, x2=x1;
+    let ns=noise(x2,y2,z2,time);
+    let amp=1+ns*(voiceActivated?0.45:0.18);
+    let r=baseR*amp, px=x2*r, py=y2*r, pz=z2*r;
+    let persp=200/(200-pz);
+    projected.push({ x:cx+px*persp, y:cy+py*persp, z:pz, layer:p.layer });
+  });
+
+  projected.sort((a,b)=>a.z-b.z);
+  projected.forEach(p=>{
+    let alpha=((p.z+baseR)/(2*baseR))*0.65+0.35;
+    let rs=((p.z+baseR)/(2*baseR))*1.8+0.6;
+    ctx2.beginPath(); ctx2.arc(p.x,p.y,rs,0,Math.PI*2);
+    ctx2.fillStyle = p.layer==='outer'
+      ? `rgba(79,216,255,${alpha})`
+      : `rgba(255,180,84,${alpha*0.8})`;
+    ctx2.fill();
+  });
+  requestAnimationFrame(render);
+}
+render();
+
+// Mic toggle for visual effect
+const micBtn = document.getElementById('micBtn');
+micBtn.addEventListener('click', ()=>{
+  voiceActivated = !voiceActivated;
+  micBtn.classList.toggle('on', voiceActivated);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TreeSloth 实时热点</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#080B24;--gb:rgba(255,255,255,.08);--go:rgba(150,150,255,.25);--t:#F0F0FF;--t2:#8888BB;--a:#8B5CFF}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(--t);font-family:'Inter',-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+#hd{display:flex;align-items:center;justify-content:space-between;padding:12px 24px;border-bottom:1px solid var(--go);background:rgba(8,11,36,.9);backdrop-filter:blur(20px);position:absolute;top:0;left:0;right:0;z-index:100;height:52px}
+#hd h1{font-size:15px;font-weight:700;color:var(--t)}
+#hd .meta{font-size:10px;color:var(--t2);margin-top:1px}
+.tabs{display:flex;gap:5px}
+.tabs button{border:none;background:var(--gb);color:var(--t2);padding:5px 12px;border-radius:14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
+.tabs button.on{border:1.5px solid var(--a);color:var(--t);background:rgba(139,92,255,.15)}
+
+#main{position:absolute;top:52px;bottom:32px;left:0;right:0;display:flex}
+#globe{flex:1;position:relative;overflow:hidden}
+#sidebar{width:320px;flex-shrink:0;overflow-y:auto;padding:14px 12px;background:rgba(10,14,40,.8);border-left:1px solid var(--go)}
+#sidebar::-webkit-scrollbar{width:3px}#sidebar::-webkit-scrollbar-track{background:transparent}#sidebar::-webkit-scrollbar-thumb{background:var(--go);border-radius:2px}
+.item{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;transition:background .12s;margin-bottom:3px;text-decoration:none;border:1px solid transparent}
+.item:hover{background:rgba(99,91,255,.08);border-color:rgba(150,150,255,.15)}
+.item .r{font-size:15px;font-weight:800;width:22px;text-align:center;flex-shrink:0}
+.item .r.top3{color:#FF0050}.item .r:not(.top3){color:#555588}
+.item .l{font-size:11px;color:#C0C0EE;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .m{font-size:9px;color:#555588;flex-shrink:0;display:flex;gap:4px;align-items:center}
+.tag{padding:1px 4px;border-radius:3px;font-size:8px;font-weight:600}
+.tag.n{background:rgba(255,0,80,.15);color:#FF0050}.tag.h{background:rgba(255,120,0,.15);color:#FF7800}
+#ticker{position:absolute;bottom:0;left:0;right:0;height:32px;background:rgba(8,11,36,.9);border-top:1px solid var(--go);display:flex;align-items:center;padding:0 16px;font-size:10px;color:var(--t2);z-index:50;overflow:hidden}
+#ticker span{white-space:nowrap;animation:tk 40s linear infinite}
+@keyframes tk{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+</style>
+</head>
+<body>
+
+<div id="hd">
+  <div><h1>🔥 实时热点追踪</h1><div class="meta" id="update">加载中...</div></div>
+  <div class="tabs" id="tabs">
+    <button class="on" data-p="douyin">抖音</button>
+    <button data-p="weibo">微博</button>
+    <button data-p="xiaohongshu">小红书</button>
+    <button data-p="wechat">微信</button>
+  </div>
+</div>
+
+<div id="main">
+  <div id="globe"><canvas id="cvs"></canvas></div>
+  <div id="sidebar"></div>
+</div>
+
+<div id="ticker"><span id="ticker-text">加载中...</span></div>
+
+<script>
+/* ═══════════════════════════════════════════
+   Minimal Canvas 2D globe — no Three.js, no deps
+   ═══════════════════════════════════════════ */
+(function(){
+  const c=document.getElementById('cvs'),ctx=c.getContext('2d');
+  const wrap=document.getElementById('globe');
+  let W=800,H=600,R=200,CX=CY=0;
+
+  function resize(){
+    W=wrap.clientWidth;H=wrap.clientHeight;
+    c.width=W*devicePixelRatio;c.height=H*devicePixelRatio;
+    c.style.width=W+'px';c.style.height=H+'px';
+    ctx.setTransform(1,0,0,1,0,0);ctx.scale(devicePixelRatio,devicePixelRatio);
+    CX=W/2;CY=H/2;R=Math.min(W,H)*0.35;
+  }
+  resize();new ResizeObserver(resize).observe(wrap);
+
+  // Ocean + continent dot pattern
+  function drawGlobe(angle){
+    ctx.clearRect(0,0,W,H);
+    // Atmosphere glow
+    const g=ctx.createRadialGradient(CX,CY,R*0.9,CX,CY,R*1.25);
+    g.addColorStop(0,'rgba(74,156,255,0.08)');g.addColorStop(1,'transparent');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(CX,CY,R*1.25,0,Math.PI*2);ctx.fill();
+
+    // Grid lines
+    ctx.strokeStyle='rgba(74,156,255,0.08)';ctx.lineWidth=0.5;
+    for(let i=0;i<12;i++){
+      const lat=(i-5.5)*Math.PI/12;
+      const r2=Math.cos(lat)*R, y=CY+Math.sin(lat)*R;
+      if(r2>10){ctx.beginPath();ctx.ellipse(CX,y,r2,R*0.04,0,0,Math.PI*2);ctx.stroke()}
+    }
+    for(let i=0;i<18;i++){
+      const lng=i*Math.PI/9+angle;
+      ctx.beginPath();ctx.moveTo(CX+Math.cos(lng)*R*0.95,CY-R*0.95);
+      ctx.quadraticCurveTo(CX+Math.cos(lng)*R*1.15,CY,CX+Math.cos(lng)*R*0.95,CY+R*0.95);ctx.stroke()
+    }
+
+    // Continents as blobs (fixed seed so they stop flickering)
+    ctx.fillStyle='rgba(58,107,37,0.85)';
+    const seeds=[[.15,.2,.06],[.55,.3,.09],[.75,.55,.07],[.35,.65,.06],[.2,.5,.05],[.85,.7,.07],[.5,.2,.05],[.7,.4,.08],[.1,.75,.05]];
+    seeds.forEach(s=>{
+      ctx.beginPath();ctx.arc(CX+(s[0]-.5)*R*1.8,CY+(s[1]-.5)*R*1.8,R*s[2]*6,0,Math.PI*2);ctx.fill()
+    });
+
+    // White dots (cities)
+    ctx.fillStyle='rgba(200,220,255,0.7)';
+    for(let i=0;i<80;i++){
+      const a=i*71239%101/101*Math.PI*2, lat=(i*3127%101/101-0.5)*Math.PI;
+      const x=CX+Math.cos(a)*Math.cos(lat)*R, y=CY+Math.sin(lat)*R*0.9;
+      if(Math.abs(y-CY)<R*0.9){ctx.beginPath();ctx.arc(x,y,1.2,0,Math.PI*2);ctx.fill()}
+    }
+
+    // Ocean shade
+    const og=ctx.createRadialGradient(CX,CY,R*0.3,CX,CY,R);
+    og.addColorStop(0,'rgba(8,11,36,0.6)');og.addColorStop(1,'rgba(0,20,60,0.2)');
+    ctx.fillStyle=og;ctx.beginPath();ctx.arc(CX,CY,R,0,Math.PI*2);ctx.fill();
+  }
+
+  let angle=0, mx=0,my=0, autoSpin=true;
+  wrap.addEventListener('mousemove',e=>{
+    const r=wrap.getBoundingClientRect();
+    mx=(e.clientX-r.left-r.width/2)/(r.width/2);my=(e.clientY-r.top-r.height/2)/(r.height/2);
+    autoSpin=false;
+  });
+  wrap.addEventListener('mouseleave',()=>{autoSpin=true});
+
+  function loop(t){
+    requestAnimationFrame(loop);
+    if(autoSpin){mx=Math.sin(t*0.0003)*0.6;my=Math.sin(t*0.0002)*0.3}
+    else{mx*=0.95;my*=0.95}
+    angle=(-mx*Math.PI+Math.PI*0.5);
+    drawGlobe(angle);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+
+<script>
+/* ═══════════════════════════════════════════
+   Hotspot data
+   ═══════════════════════════════════════════ */
+const API='http://127.0.0.1:3721';
+let data=null,platform='douyin';
+
+async function fetchData(){
+ try{
+  const r=await fetch(`${API}/hotspots`);data=await r.json();
+  document.getElementById('update').textContent='更新于 '+new Date(data.fetchedAt).toLocaleTimeString('zh-CN');
+  render();ticker();
+ }catch(e){document.getElementById('update').textContent='加载失败'}
+}
+function render(){
+ const items=data?.platforms?.[platform]||[];
+ document.getElementById('sidebar').innerHTML=items.map((it,i)=>{
+  let tags='';if(it.isNew)tags+='<span class="tag n">NEW</span>';
+  if(it.tag&&it.tag!=='0')tags+=`<span class="tag h">${it.tag}</span>`;
+  return `<a class="item" href="${it.url||'#'}" target="_blank" rel="noopener"><span class="r${i<3?' top3':''}">${it.rank||i+1}</span><span class="l">${it.title.replace(/</g,'&lt;')}</span><span class="m">${it.heat&&it.heat!=='0'?it.heat:''} ${tags}</span></a>`
+ }).join('');
+}
+function ticker(){
+ const all=[];['douyin','weibo','xiaohongshu','wechat'].forEach(p=>{
+  (data?.platforms?.[p]||[]).slice(0,3).forEach(i=>all.push(`[${p==='douyin'?'抖音':p==='weibo'?'微博':p==='xiaohongshu'?'小红书':'微信'}] ${i.title.replace(/</g,'')}`));
+ });
+ document.getElementById('ticker-text').textContent=all.join(' · ');
+}
+document.getElementById('tabs').addEventListener('click',e=>{
+ const b=e.target.closest('button');if(!b)return;
+ platform=b.dataset.p;document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));render();
+});
+fetchData();
+</script>
+</body>
+</html>

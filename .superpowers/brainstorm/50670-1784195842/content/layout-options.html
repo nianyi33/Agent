@@ -1,0 +1,73 @@
+<h2>深紫星空 · B1 — 布局方案</h2>
+<p class="subtitle">现有布局是 左面板 + 右主区域 + 底部输入框。选一个新布局。</p>
+
+<div class="cards">
+  <div class="card" data-choice="layout-a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0">
+        <div class="mockup-body">
+          <div style="background:linear-gradient(135deg,#0a0a14,#1a1a3e);padding:16px;border:1px solid rgba(124,58,237,0.3);border-radius:6px;min-height:200px;display:flex;flex-direction:column">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <div style="font-size:13px;color:#a78bfa;font-weight:600">✦ AI AGENT</div>
+              <div style="display:flex;gap:6px">
+                <div style="width:20px;height:20px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(124,58,237,0.15)"></div>
+                <div style="width:20px;height:20px;border:1px solid rgba(255,255,255,0.1);border-radius:4px"></div>
+              </div>
+            </div>
+            <div style="flex:1;display:flex;gap:12px">
+              <div style="width:180px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:4px;padding:8px;display:flex;flex-direction:column;gap:4px">
+                <div style="font-size:10px;color:#888">会话记录</div>
+                <div style="height:6px;background:rgba(124,58,237,0.2);border-radius:3px;width:80%"></div>
+                <div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;width:90%"></div>
+                <div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;width:60%"></div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column">
+                <div style="flex:1"></div>
+                <div style="font-size:11px;color:#e0e0e0;margin-bottom:4px">今天西安天气晴朗，32度</div>
+                <div style="font-size:10px;color:#666;margin-bottom:8px">Agent 回复</div>
+                <div style="display:flex;gap:6px">
+                  <div style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:4px;padding:6px 10px;font-size:10px;color:#555">输入…</div>
+                  <div style="width:28px;height:28px;border:1px solid rgba(124,58,237,0.4);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#a78bfa;font-size:12px">🎤</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — 经典双栏</h3>
+      <p>保持现有布局：左面板(260px) + 右主区域 + 底部输入框。稳定，用户熟悉。</p>
+      <p style="font-size:0.85em;color:var(--ink2)">改 CSS 即可，不动 HTML 结构。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="layout-b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0">
+        <div class="mockup-body">
+          <div style="background:linear-gradient(135deg,#0a0a14,#1a1a3e);padding:16px;border:1px solid rgba(124,58,237,0.3);border-radius:6px;min-height:200px;display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+              <div style="width:12px;height:12px;border-radius:50%;background:#f59e0b"></div>
+              <div style="font-size:12px;color:#a78bfa;font-weight:600">AI AGENT</div>
+              <div style="margin-left:auto;font-size:10px;color:#666">17:32</div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;">
+              <div style="align-self:flex-end;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.2);border-radius:8px 8px 0 8px;padding:8px 12px;margin-bottom:6px;max-width:70%;font-size:11px;color:#e0e0e0">今天天气怎么样？</div>
+              <div style="align-self:flex-start;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px 8px 8px 0;padding:8px 12px;margin-bottom:8px;max-width:75%;font-size:11px;color:#e0e0e0">西安晴天，32度，适合出行</div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <div style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(124,58,237,0.15);border-radius:16px;padding:6px 14px;font-size:10px;color:#555">输入消息…</div>
+              <div style="width:32px;height:32px;border:1px solid rgba(124,58,237,0.4);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#a78bfa;font-size:14px">🎤</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — 全宽对话</h3>
+      <p>去掉左侧面板，全宽聊天窗口。顶部窄状态条，消息气泡居中，输入框圆角胶囊形。像微信/Telegram 桌面版。</p>
+      <p style="font-size:0.85em;color:var(--ink2)">聚焦对话，语音按钮更突出。但失去左侧面板的节点图和数据。</p>
+    </div>
+  </div>
+</div>
