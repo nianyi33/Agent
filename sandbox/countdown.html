@@ -1,0 +1,198 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>倒计时</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0f0f1a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #e0e0e0;
+  }
+  .container {
+    text-align: center;
+    padding: 48px 40px;
+    border-radius: 24px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(20px);
+    min-width: 420px;
+  }
+  h1 {
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 32px;
+  }
+  .target-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+  .target-row input[type="datetime-local"] {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #ccc;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .target-row input[type="datetime-local"]:focus {
+    border-color: #7c5cfc;
+  }
+  .target-row button {
+    background: #7c5cfc;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .target-row button:hover { background: #6a4be0; }
+  .countdown {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+  }
+  .unit {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .unit .value {
+    font-size: 64px;
+    font-weight: 200;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+    min-width: 100px;
+    text-align: center;
+  }
+  .unit .label {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: #666;
+    margin-top: 10px;
+    text-transform: uppercase;
+  }
+  .separator {
+    font-size: 56px;
+    font-weight: 100;
+    color: #444;
+    line-height: 1;
+    align-self: flex-start;
+    padding-top: 2px;
+  }
+  .status {
+    margin-top: 32px;
+    font-size: 13px;
+    color: #555;
+    min-height: 20px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>倒计时</h1>
+  <div class="target-row">
+    <input type="datetime-local" id="targetInput" />
+    <button onclick="setTarget()">设置</button>
+  </div>
+  <div class="countdown" id="countdown">
+    <div class="unit"><span class="value" id="days">00</span><span class="label">天</span></div>
+    <span class="separator">:</span>
+    <div class="unit"><span class="value" id="hours">00</span><span class="label">时</span></div>
+    <span class="separator">:</span>
+    <div class="unit"><span class="value" id="mins">00</span><span class="label">分</span></div>
+    <span class="separator">:</span>
+    <div class="unit"><span class="value" id="secs">00</span><span class="label">秒</span></div>
+  </div>
+  <div class="status" id="status"></div>
+</div>
+
+<script>
+  const daysEl = document.getElementById('days');
+  const hoursEl = document.getElementById('hours');
+  const minsEl = document.getElementById('mins');
+  const secsEl = document.getElementById('secs');
+  const statusEl = document.getElementById('status');
+  const inputEl = document.getElementById('targetInput');
+  let target = null;
+
+  // 从 localStorage 恢复
+  const saved = localStorage.getItem('countdown_target');
+  if (saved) {
+    target = new Date(saved);
+    inputEl.value = toLocalISO(target);
+  }
+
+  function toLocalISO(d) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function setTarget() {
+    const val = inputEl.value;
+    if (!val) return;
+    target = new Date(val);
+    localStorage.setItem('countdown_target', target.toISOString());
+    tick();
+  }
+
+  function tick() {
+    if (!target) {
+      daysEl.textContent = '--';
+      hoursEl.textContent = '--';
+      minsEl.textContent = '--';
+      secsEl.textContent = '--';
+      statusEl.textContent = '';
+      return;
+    }
+    const now = new Date();
+    const diff = target - now;
+
+    if (diff <= 0) {
+      daysEl.textContent = '00';
+      hoursEl.textContent = '00';
+      minsEl.textContent = '00';
+      secsEl.textContent = '00';
+      statusEl.textContent = '⏰ 时间到！';
+      return;
+    }
+
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+
+    const pad = n => String(n).padStart(2, '0');
+    daysEl.textContent = pad(d);
+    hoursEl.textContent = pad(h);
+    minsEl.textContent = pad(m);
+    secsEl.textContent = pad(s);
+
+    statusEl.textContent = `目标：${target.toLocaleString('zh-CN')}`;
+  }
+
+  tick();
+  setInterval(tick, 250);
+</script>
+</body>
+</html>
