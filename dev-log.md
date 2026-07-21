@@ -579,6 +579,51 @@ z-index 层级    ✅ 0→1→2→3→4→10→999 无冲突
 
 ---
 
+## v0.4.0 — 🤖 Claude Code 化 + 微信全链路 + Playwright + QR 刷新 (2026-07-21)
+
+### 🤖 System Prompt 升级 — Karpathy 4 段质量规则
+- **No Speculative Scope** — 不加戏，问了什么答什么
+- **Surgical Changes** — 手术刀，不改不相干代码
+- **Goal-Driven Verification** — 不验 = 撒谎
+- **One Variable — Debugging** — 调试只改一个变量
+
+### 🎯 Skills 系统 — 关键词自动注入
+- 复用已有 `src/skills/registry.js`，启动扫描 `skills/`、消息匹配、注入 ` <agent-skills>` 块
+- 新增 3 个 SKILL.md: Coding / Debugging / Agent Skills
+
+### 🔌 Playwright 浏览器引擎
+- `npm install playwright` + `npx playwright install chromium`
+- `browser_read` 工具已验证：LLM 可打开真实浏览器读取 JS 渲染页面、截屏、填表
+
+### 💬 微信 ClawBot 全链路
+- **QR 码**：`qrcode` 库本地生成真正 PNG → `/social/wechat-clawbot/qr-image` → 前端 `data:image/png;base64` 显示
+- **扫码连接**：async `startClawbotConnector` + `loadIlink()` → QR 扫码 → 保存凭证 → auto-start
+- **sync_buf 持久化**：`getClawbotSyncBuf`/`setClawbotSyncBuf` → 重启后继续接收消息
+- **消息接收**：`client.on('message')` + `client.on('poll')` → `handleClawbotInboundMessage` → `pushMessage` → LLM
+- **消息发送**：LLM `send_message` → `WECHAT_CLAWBOT` → `sendClawbotMessage` → `sendText` 发回微信
+- **QR 倒计时**：3 分钟倒计时 00:00 格式 + 最后 30 秒变红 + 刷新按钮
+
+### 🔧 前端修复（6 项）
+- CSS 语法错误 → Vite build 通过
+- CORS 头缺失 → social API 补全
+- 重复回复 → useSSE 去重
+- 头像/按钮/输入框 → Layout Shell 完善
+- 模型名持久化 → `/agent-profile` + 启动加载
+- 对话可复制 → `.chat-bubble { user-select: text }`
+
+### 🎯 能力实测
+| 场景 | 结果 |
+|------|------|
+| LLM 对话 | ✅ 每条消息单次回复 |
+| 写代码 | ✅ 生成 5KB countdown.html |
+| browser_read | ✅ 浏览器打开百度标题 |
+| 微信 QR 码 | ✅ 真实二维码图片 + 倒计时 |
+| 微信扫码 | ✅ 连接成功 (accountId: c301f3bc2ffe@im.bot) |
+| 微信消息接收 | ✅ Webhook 接口 + monitor 循环 |
+| 微信消息发送 | ✅ LLM 回复通过 bot API 发回微信 |
+| ASR 语音 | ✅ 阿里云 DashScope Paraformer |
+| TTS 朗读 | ✅ 阿里云 Qwen-TTS Cherry |
+
 ## v0.3.9 — 🧠 System Prompt 增强 + Skills 系统 + 12大 Bug 修复 + 图标替换 + 旧前端清理 (2026-07-20)
 
 ### 🧠 思考链泄露修复
