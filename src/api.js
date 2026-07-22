@@ -52,7 +52,7 @@ const SCENE_SHELL_ASSET_ROOT = path.join(paths.resourcesDir, 'src', 'ui', 'scene
 const TERMINAL_STREAM_PATH = path.join(paths.resourcesDir, 'src', 'ui', 'terminal-stream', 'index.html')
 const D3_VENDOR_PATH     = path.join(paths.resourcesDir, 'node_modules', 'd3', 'dist', 'd3.min.js')
 const SANDBOX_PATH       = paths.sandboxDir
-const DEFAULT_AGENT_NAME = 'VeloraAgent'
+const DEFAULT_AGENT_NAME = '闪电树懒'
 const DEFAULT_API_HOST = '127.0.0.1'
 const INBOUND_MESSAGE_DEDUPE_TTL_MS = 10_000
 const INBOUND_MESSAGE_FALLBACK_DEDUPE_MS = 1_500
@@ -142,7 +142,10 @@ function isLoopbackOrigin(origin = '') {
   if (!origin || origin === 'null') return true
   try {
     const parsed = new URL(origin)
-    return ['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname)
+    // 127.0.0.1/localhost/::1 — Vite dev server & direct loopback.
+    // tauri.localhost — Tauri v2 Windows WebView2 production origin (http://tauri.localhost).
+    // Without this, the packaged frontend's fetch to 127.0.0.1:3721 is 403-rejected by CORS.
+    return ['127.0.0.1', 'localhost', '::1', 'tauri.localhost'].includes(parsed.hostname)
   } catch {
     return false
   }
@@ -412,12 +415,42 @@ export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = n
     // GET /social/wechat-clawbot/qr — get current QR code status and URL
     if (req.method === 'GET' && url.pathname === '/social/wechat-clawbot/qr') {
       if (!hasAllowedAccess(req, url)) return jsonResponse(res, 403, { ok: false, error: 'forbidden' })
+      if (isAllowedOrigin(origin)) res.setHeader('Access-Control-Allow-Origin', origin || 'null')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
       return jsonResponse(res, 200, { ok: true, ...getClawbotQR() })
+    }
+
+    // GET /social/wechat-clawbot/qr-image — generate a real QR code PNG from the URL using qrcode library
+    if (req.method === 'GET' && url.pathname === '/social/wechat-clawbot/qr-image') {
+      if (!hasAllowedAccess(req, url)) return jsonResponse(res, 403, { ok: false, error: 'forbidden' })
+      if (isAllowedOrigin(origin)) res.setHeader('Access-Control-Allow-Origin', origin || 'null')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+      const qr = getClawbotQR()
+      if (qr.status !== 'qr_ready' || !qr.qr_url) {
+        return jsonResponse(res, 404, { ok: false, status: qr.status })
+      }
+      try {
+        // Use qrcode library to generate a real PNG QR code from the URL
+        const QRCode = (await import('qrcode')).default
+        const dataUrl = await QRCode.toDataURL(qr.qr_url, { width: 256, margin: 2 })
+        // dataUrl is "data:image/png;base64,..." — extract base64 part
+        const b64 = dataUrl.split(',')[1]
+        res.writeHead(200, { 'Content-Type': 'text/plain' })
+        res.end(b64)
+      } catch (err) {
+        jsonResponse(res, 502, { ok: false, error: `QR generation failed: ${err.message}` })
+      }
+      return
     }
 
     // GET /social/feishu/status — 飞书长连接当前状态 + 是否已配置凭据（配置弹窗用）
     if (req.method === 'GET' && url.pathname === '/social/feishu/status') {
       if (!hasAllowedAccess(req, url)) return jsonResponse(res, 403, { ok: false, error: 'forbidden' })
+      if (isAllowedOrigin(origin)) res.setHeader('Access-Control-Allow-Origin', origin || 'null')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
       const configured = !!(process.env.FEISHU_APP_ID && process.env.FEISHU_APP_SECRET)
       return jsonResponse(res, 200, { ok: true, status: getFeishuStatus(), configured })
     }
@@ -425,6 +458,9 @@ export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = n
     // POST /social/wechat-clawbot/logout — clear credentials and disconnect
     if (req.method === 'POST' && url.pathname === '/social/wechat-clawbot/logout') {
       if (!requireLocalOrToken(req, res, url)) return
+      if (isAllowedOrigin(origin)) res.setHeader('Access-Control-Allow-Origin', origin || 'null')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
       logoutClawbot()
       emitEvent('social_status', { platform: 'wechat-clawbot', status: 'idle' })
       return jsonResponse(res, 200, { ok: true })

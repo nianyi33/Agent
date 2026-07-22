@@ -1,6 +1,6 @@
 ---
 name: Coding
-description: Coding discipline — write code in vertical slices, verify after each change, touch only what was asked, match existing style, and never restructure code you were not told to restructure.
+description: Coding discipline �?write code in vertical slices, verify after each change, touch only what was asked, match existing style, and never restructure code you were not told to restructure.
 tags:
   - coding
   - engineering
@@ -18,10 +18,7 @@ triggers:
   - implement
   - create a script
   - 编程
-  - 写代码
-  - 改
-  - 修
----
+  - 写代�?  - �?  - �?---
 
 # Coding Discipline
 
@@ -41,7 +38,7 @@ Before editing any file: read it first. Never modify a file you haven't seen the
 A single entry point. No build steps unless the user asked for them.
 
 ## 6. Verify before reporting done
-After every change: produce evidence it works — run it, fetch it, verify the output. "Tested" from reading the code is not tested.
+After every change: produce evidence it works �?run it, fetch it, verify the output. "Tested" from reading the code is not tested.
 
 ## 7. No speculative features
 Only what was asked. No "while we're at it" additions.

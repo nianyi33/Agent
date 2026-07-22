@@ -179,7 +179,7 @@ export default function AgentStudioPage() {
 
       {/* Stat pills */}
       <div style={{ display:'flex', gap:10, marginBottom:20 }}>
-        <MiniStat icon={<Cpu size={14} style={{color:'#8B5CFF'}}/>} label="核心" value="VeloraAgent AI" />
+        <MiniStat icon={<Cpu size={14} style={{color:'#8B5CFF'}}/>} label="核心" value="闪电树懒 AI" />
         <MiniStat icon={<Brain size={14} style={{color:'#C0C0EE'}}/>} label="记忆" value={`${memoryCount} 条`} />
         <MiniStat icon={<Wrench size={14} style={{color:'#4A9CFF'}}/>} label="工具" value={`${toolCount} 个`} />
         <MiniStat icon={<Activity size={14} style={{color:'#00E676'}}/>} label="活动" value={`${pipeline.length} 步`} />
@@ -248,7 +248,7 @@ export default function AgentStudioPage() {
             <Cpu size={13} style={{color:'#8B5CFF'}}/> 工作 Agent
           </h2>
           {[
-            { name:'VeloraAgent AI', icon:Bot, color:'#8B5CFF', status: aiStatus !== 'offline', desc:'主控·任务分解·对话生成' },
+            { name:'闪电树懒 AI', icon:Bot, color:'#8B5CFF', status: aiStatus !== 'offline', desc:'主控·任务分解·对话生成' },
             { name:'工具调度器', icon:Wrench, color:'#FFB800', status: true, desc:`${toolCount} 个工具注册, web_search/write_file/media_mode...` },
             { name:'沙箱执行器', icon:Code, color:'#00D4FF', status: true, desc:'文件读写·命令执行·安全隔离' },
           ].map(a => {

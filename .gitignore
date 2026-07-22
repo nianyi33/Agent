@@ -5,6 +5,18 @@ data/
 *.old.log
 .env
 config.json
+desktop/dist/
+desktop/node_modules/
+desktop/src-tauri/target/
+desktop/build-*.log
+jspm_packages/
+.DS_Store
+Thumbs.db
+*.wixpdb
+*.wixobj
+.ipynb_checkpoints/
+
+# Keep these build resources
 !build/icon.ico
 !build/icon.png
 !build/icon.icns

@@ -1,6 +1,6 @@
 ---
 name: Debugging
-description: Systematic debugging method — reproduce first, list 3 ranked falsifiable hypotheses, change ONE variable at a time, stop after fixing.
+description: Systematic debugging method �?reproduce first, list 3 ranked falsifiable hypotheses, change ONE variable at a time, stop after fixing.
 tags:
   - debugging
   - diagnose
@@ -19,9 +19,7 @@ triggers:
   - 坏了
   - 崩溃
   - 打不开
-  - 不工作
-  - 修一下
-  - 修复
+  - 不工�?  - 修一�?  - 修复
   - 排查
   - not working
   - broken
@@ -34,7 +32,7 @@ triggers:
 Construct a repeatable pass/fail check that reproduces the symptom. A reliable loop is 90% of the fix.
 
 ## 2. Reproduce before you hypothesize
-Run the loop and watch it fail the way described. If you cannot reproduce it, say so — do not guess-fix.
+Run the loop and watch it fail the way described. If you cannot reproduce it, say so �?do not guess-fix.
 
 ## 3. List 3 ranked, falsifiable hypotheses
 Each must predict: "if X is the cause, changing Y makes the symptom disappear."

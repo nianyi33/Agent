@@ -19,7 +19,7 @@ interface ChatStore {
   setIsThinking: (v: boolean) => void;
   addThinkingStep: (step: string) => void;
   setCurrentStreamContent: (v: string) => void;
-  appendStreamChunk: (chunk: string) => void;
+  appendStreamChunk: (chunk: string, mode?: string) => void;
   finalizeStream: () => void;
   clearChat: () => void;
   /** Preload TTS audio for a message and store the blob URL. */
@@ -39,7 +39,13 @@ async function fetchAndCacheAudio(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, voiceId: voice }),
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      if (errBody?.needsConfig) {
+        console.warn('[TTS] Configuration needed:', errBody.error || errBody.guide);
+      }
+      return;
+    }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     set((s) => ({ audioCache: { ...s.audioCache, [messageId]: url } }));

@@ -19,6 +19,11 @@ interface AppStore {
 
   modelName: string;
   setModelName: (name: string) => void;
+
+  wechatStatus: string;
+  setWechatStatus: (status: string) => void;
+  wechatQr: string | null;
+  setWechatQr: (qr: string | null) => void;
 }
 
 export const useAppStore = create<AppStore>((set) => ({
@@ -34,9 +39,14 @@ export const useAppStore = create<AppStore>((set) => ({
   hoverInput: false,
   setHoverInput: (hover) => set({ hoverInput: hover }),
 
-  agentName: 'VeloraAgent',
+  agentName: '闪电树懒',
   setAgentName: (name) => set({ agentName: name }),
 
   modelName: '',
   setModelName: (name) => set({ modelName: name }),
+
+  wechatStatus: '',
+  setWechatStatus: (status) => set({ wechatStatus: status }),
+  wechatQr: null,
+  setWechatQr: (qr) => set({ wechatQr: qr }),
 }));

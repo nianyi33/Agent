@@ -1218,7 +1218,7 @@ async function runTurn(input, label, msg = null) {
 
     // 2. Build system prompt (stable hard-floor) + context block (per-round dynamic)
     const persona = getConfig('persona') || ''
-    const agentName = getConfig('agent_name') || 'VeloraAgent'
+    const agentName = getConfig('agent_name') || '闪电树懒'
     const entities = getKnownEntities()
     const hasActiveTask = !!state.task
     const terminalStreamContext = formatTerminalStreamContext()

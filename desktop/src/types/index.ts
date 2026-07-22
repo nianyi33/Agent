@@ -18,7 +18,8 @@ export type SSEEventType =
   | 'tool_call' | 'tool_executing' | 'memories_written'
   | 'agent_name_updated' | 'activated' | 'model_switched'
   | 'admin' | 'ui_signal' | 'error' | 'quota'
-  | 'reminder_fired' | 'context_gathered' | 'injector_result' | 'focus_frame';
+  | 'reminder_fired' | 'context_gathered' | 'injector_result' | 'focus_frame'
+  | 'social_status';
 
 export interface SSEEvent {
   type: SSEEventType;

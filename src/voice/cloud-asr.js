@@ -283,7 +283,7 @@ function makeVolcFrame(messageType, flags, serialization, payload) {
 function makeVolcFullClientRequest(lang) {
   const langCode = lang === 'zh' ? 'zh-CN' : lang
   const payload = Buffer.from(JSON.stringify({
-    user: { uid: 'bailongma' },
+    user: { uid: 'veloria' },
     audio: {
       format: 'pcm',
       codec: 'raw',

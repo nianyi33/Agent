@@ -142,11 +142,45 @@ async function handleWeCom(req, res) {
   return jsonResponse(res, 200, { ok: true })
 }
 
+async function handleOpeniLinkClawbot(req, res) {
+  const raw = await readBody(req)
+  let body = null
+  try { body = JSON.parse(raw.toString('utf-8') || '{}') } catch {
+    return jsonResponse(res, 400, { ok: false, error: 'invalid json' })
+  }
+
+  const fromUserId = body.from_user_id || body.fromUserId || ''
+  const items = body.item_list || body.items || body.itemList || []
+
+  // extract text
+  let content = body.content || ''
+  for (const item of items) {
+    if (item.type === 1 || item.type === 'text') {
+      content = item.text_item?.text || item.textItem?.text || content
+      break
+    }
+    if (item.type === 7 || item.type === 'voice') {
+      content = item.voice_item?.text || ''
+      break
+    }
+  }
+
+  if (fromUserId && content) {
+    enqueueSocialMessage(`wechat:clawbot:${fromUserId}`, content, 'WECHAT_CLAWBOT', {
+      platform: 'wechat-clawbot',
+      from_user_id: fromUserId,
+    })
+  }
+
+  return jsonResponse(res, 200, { ok: true })
+}
+
 export async function handleSocialWebhook(req, res, url) {
   try {
     if (url.pathname === '/social/feishu/webhook') return await handleFeishu(req, res)
     if (url.pathname === '/social/wechat/official') return await handleWechatOfficial(req, res, url)
     if (url.pathname === '/social/wecom/webhook') return await handleWeCom(req, res)
+    if (url.pathname === '/social/wechat/clawbot' || url.pathname === '/webhook/wechat' || url.pathname === '/social/wechat/clawbot/webhook') return await handleOpeniLinkClawbot(req, res)
     return jsonResponse(res, 404, { ok: false, error: 'unknown social webhook' })
   } catch (error) {
     return jsonResponse(res, 500, { ok: false, error: error.message })

@@ -37,6 +37,9 @@ html, body, #root {
   color: var(--color-text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
 .chat-bubble {
   user-select: text;
 }

@@ -1,4 +1,4 @@
-import { Cpu, Bell, Settings } from 'lucide-react';
+import { Bell, Settings } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../../stores/app-store';
 
@@ -47,20 +47,24 @@ function Header() {
     >
       {/* Left: logo + title */}
       <div className="flex items-center gap-3">
-        <div
-          className="flex h-9 w-9 items-center justify-center rounded-[12px]"
+        <img
+          src="/app0.png"
+          alt="闪电树懒"
           style={{
-            background: 'linear-gradient(135deg, #635BFF, #8B5CFF)',
+            width: '36px',
+            height: '36px',
+            borderRadius: '12px',
+            objectFit: 'cover',
+            position: 'relative',
+            left: '16px',
           }}
-        >
-          <Cpu className="h-[18px] w-[18px] text-white" />
-        </div>
-        <div className="flex flex-col leading-none">
+        />
+        <div className="flex flex-col leading-none" style={{ marginLeft: '16px' }}>
           <span className="text-[14px] font-semibold tracking-wide" style={{ color: '#F0F0FF' }}>
-            VeloraAgent
+            闪电树懒
           </span>
           <span className="text-[10px] tracking-[0.08em]" style={{ color: '#555588' }}>
-            v2.0
+            v0.1.0
           </span>
         </div>
       </div>

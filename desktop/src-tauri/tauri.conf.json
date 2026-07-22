@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "VeloraAgent",
-  "version": "2.0.0",
-  "identifier": "com.veloraagent.aios",
+  "productName": "闪电树懒",
+  "version": "0.1.0",
+  "identifier": "com.lightningsloth.aios",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "VeloraAgent",
+        "title": "闪电树懒",
         "width": 1440,
         "height": 900,
         "minWidth": 1200,
@@ -30,13 +30,26 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "languages": ["SimpChinese", "English"]
+      }
+    },
+    "resources": {
+      "../../src/": "backend/src/",
+      "../../scripts/": "backend/scripts/",
+      "../../skills/": "backend/skills/",
+      "../../package.json": "backend/package.json",
+      "../../node_modules/": "backend/node_modules/",
+      "../../resources/node.exe": "backend/node.exe"
+    }
   }
 }
