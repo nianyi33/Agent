@@ -91,16 +91,21 @@ jobs:
 
       - name: Install backend deps (platform-native)
         working-directory: .
-        run: npm ci --omit=dev --ignore-scripts
+        run: npm ci --omit=dev
 
-      - name: Set bundle target to DMG
+      - name: Switch bundle target to DMG (macOS)
         shell: bash
         run: |
-          cd desktop/src-tauri
-          sed -i '' 's/"targets": \[.*\]/"targets": ["dmg"]/' tauri.conf.json
-          grep '"targets"' tauri.conf.json
+          python3 -c "
+          import json
+          path = 'desktop/src-tauri/tauri.conf.json'
+          cfg = json.load(open(path))
+          cfg['bundle']['targets'] = ['dmg']
+          json.dump(cfg, open(path, 'w'), indent=2, ensure_ascii=False)
+          print('targets:', cfg['bundle']['targets'])
+          "
 
-      - name: Build Tauri
+      - name: Build Tauri (DMG)
         shell: bash
         working-directory: desktop
         run: npm run tauri build
