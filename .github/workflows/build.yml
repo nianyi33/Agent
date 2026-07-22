@@ -1,0 +1,113 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  # ── Windows NSIS ──
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Copy bundled node.exe (if missing from LFS)
+        shell: pwsh
+        working-directory: desktop
+        run: |
+          if (-not (Test-Path resources/node.exe)) {
+            Write-Host "Downloading Node.js v24.14.0 win-x64..."
+            Invoke-WebRequest -Uri "https://nodejs.org/dist/v24.14.0/node-v24.14.0-win-x64.zip" -OutFile node.zip
+            Expand-Archive node.zip -DestinationPath node-tmp
+            Copy-Item node-tmp/node-v24.14.0-win-x64/node.exe resources/node.exe
+          }
+          Write-Host "node.exe: $(if (Test-Path resources/node.exe) { 'present' } else { 'MISSING' })"
+
+      - name: Install frontend deps
+        working-directory: desktop
+        run: npm ci
+
+      - name: Install backend deps (platform-native)
+        working-directory: .
+        run: npm ci --omit=dev
+
+      - name: Build Tauri (NSIS)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: desktop
+          args: --target nsis
+          tauriScript: npm run tauri
+
+      - name: Upload NSIS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 闪电树懒-Windows-x64-NSIS
+          path: desktop/src-tauri/target/release/bundle/nsis/*.exe
+
+  # ── macOS DMG ──
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup macOS Node binary
+        shell: bash
+        working-directory: desktop
+        run: |
+          # Download macOS arm64 Node.js binary to replace the Windows node.exe
+          NODE_VERSION="24.14.0"
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ]; then
+            NODE_ARCH="darwin-arm64"
+          else
+            NODE_ARCH="darwin-x64"
+          fi
+          TARBALL="node-v${NODE_VERSION}-${NODE_ARCH}.tar.gz"
+          curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${TARBALL}" -o node.tar.gz
+          tar -xzf node.tar.gz
+          mkdir -p resources
+          cp "node-v${NODE_VERSION}-${NODE_ARCH}/bin/node" resources/node
+          chmod +x resources/node
+          echo "macOS node binary: $(ls -lh resources/node)"
+
+      - name: Install frontend deps
+        working-directory: desktop
+        run: npm ci
+
+      - name: Install backend deps (platform-native)
+        working-directory: .
+        run: npm ci --omit=dev
+
+      - name: Build Tauri (DMG)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: desktop
+          args: --target dmg
+          tauriScript: npm run tauri
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 闪电树懒-macOS-DMG
+          path: desktop/src-tauri/target/release/bundle/dmg/*.dmg
