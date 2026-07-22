@@ -26,13 +26,14 @@ fn resolve_backend_root(app: &tauri::AppHandle) -> std::path::PathBuf {
     .unwrap_or_default()
 }
 
-/// Find the node binary — bundled copy first, then system PATH
+/// Find the node binary — bundled copy first (.exe on Windows, bare on macOS), then system PATH
 fn resolve_node(app: &tauri::AppHandle) -> String {
   if let Ok(res_dir) = app.path().resource_dir() {
-    let bundled_node = res_dir.join("backend").join("node.exe");
-    if bundled_node.exists() {
-      return bundled_node.to_string_lossy().to_string();
-    }
+    let backend = res_dir.join("backend");
+    let exe = backend.join("node.exe");
+    if exe.exists() { return exe.to_string_lossy().to_string(); }
+    let bare = backend.join("node");
+    if bare.exists() { return bare.to_string_lossy().to_string(); }
   }
   "node".to_string()
 }
@@ -65,8 +66,11 @@ pub fn run() {
       // Silently skip if npm is unavailable; do not block startup.
       if !backend_root.join("node_modules").exists() {
         println!("[闪电树懒] node_modules missing, attempting npm install (best-effort)...");
-        let npm_bin = node_bin.replace("node.exe", "npm.cmd");
-        let install_cmd = if std::path::Path::new(&npm_bin).exists() { npm_bin } else { "npm".to_string() };
+        #[cfg(target_os = "windows")]
+        let npm_candidate = node_bin.replace("node.exe", "npm.cmd");
+        #[cfg(not(target_os = "windows"))]
+        let npm_candidate = "npm".to_string();
+        let install_cmd = if std::path::Path::new(&npm_candidate).exists() { npm_candidate } else { "npm".to_string() };
         let mut npm = Command::new(&install_cmd);
         npm.args(["install", "--production"])
            .current_dir(&backend_root)

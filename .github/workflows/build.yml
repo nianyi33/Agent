@@ -81,9 +81,9 @@ jobs:
           curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${TARBALL}" -o node.tar.gz
           tar -xzf node.tar.gz
           mkdir -p resources
-          cp "node-v${NODE_VERSION}-${NODE_ARCH}/bin/node" resources/node
-          chmod +x resources/node
-          echo "macOS node binary: $(ls -lh resources/node)"
+          cp "node-v${NODE_VERSION}-${NODE_ARCH}/bin/node" resources/node.exe
+          chmod +x resources/node.exe
+          echo "macOS node binary: $(ls -lh resources/node.exe)"
 
       - name: Install frontend deps
         working-directory: desktop
