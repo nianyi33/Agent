@@ -42,13 +42,8 @@ jobs:
         run: npm ci --omit=dev --ignore-scripts
 
       - name: Build Tauri (NSIS)
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          projectPath: desktop
-          args: --target nsis
-          tauriScript: npm run tauri
+        working-directory: desktop
+        run: npm run tauri build
 
       - name: Upload NSIS artifact
         uses: actions/upload-artifact@v4
@@ -95,18 +90,20 @@ jobs:
         run: npm ci
 
       - name: Install backend deps (platform-native)
-        shell: pwsh
         working-directory: .
         run: npm ci --omit=dev --ignore-scripts
 
-      - name: Build Tauri (DMG)
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          projectPath: desktop
-          args: --target dmg
-          tauriScript: npm run tauri
+      - name: Set bundle target to DMG
+        shell: bash
+        run: |
+          cd desktop/src-tauri
+          sed -i '' 's/"targets": \[.*\]/"targets": ["dmg"]/' tauri.conf.json
+          grep '"targets"' tauri.conf.json
+
+      - name: Build Tauri
+        shell: bash
+        working-directory: desktop
+        run: npm run tauri build
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
