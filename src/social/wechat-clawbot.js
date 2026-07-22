@@ -54,9 +54,9 @@ function itemType(item) {
 
 function isClawbotMediaItem(item) {
   return itemType(item) === _getSyms().MessageItemType.IMAGE
-    || itemType(item) === _getSyms()._getSyms().MessageItemType.VIDEO
-    || itemType(item) === _getSyms()._getSyms().MessageItemType.FILE
-    || itemType(item) === _getSyms()._getSyms().MessageItemType.VOICE
+    || itemType(item) === _getSyms().MessageItemType.VIDEO
+    || itemType(item) === _getSyms().MessageItemType.FILE
+    || itemType(item) === _getSyms().MessageItemType.VOICE
 }
 
 function mediaRefForItem(item) {
@@ -284,7 +284,7 @@ export async function downloadClawbotMediaItem(item, downloaderClient = client) 
 export function pickClawbotInboundMediaItems(msg) {
   const items = Array.isArray(msg?.item_list) ? msg.item_list : []
   const priority = new Map([
-    [MessageItemType.IMAGE, 1],
+    [_ilinkSymbols.MessageItemType.IMAGE, 1],
     [_getSyms().MessageItemType.VIDEO, 2],
     [_getSyms().MessageItemType.FILE, 3],
     [_getSyms().MessageItemType.VOICE, 4],
@@ -522,9 +522,14 @@ export function logoutClawbot() {
   client = null
 }
 
-export function startClawbotConnector({ pushMessage, emitEvent } = {}) {
+export async function startClawbotConnector({ pushMessage, emitEvent } = {}) {
   const saved = getClawbotCredentials()
 
+  const ilink = await _loadIlink()
+  if (!ilink) {
+    console.warn('[ClawBot] wechat-ilink-client 未加载，跳过启动')
+    return null
+  }
   client = new (_getSyms().WeChatClient)(saved ? {
     accountId: saved.accountId,
     token: saved.botToken,

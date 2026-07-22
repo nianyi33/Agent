@@ -123,8 +123,30 @@ export default function SettingsPage() {
   const [feishuConnected, setFeishuConnected] = useState(false);
   const [wechatQr, setWechatQr] = useState<string | null>(null);
   const [wechatLoggedIn, setWechatLoggedIn] = useState(false);
+  const [qrExpiresAt, setQrExpiresAt] = useState<number>(0);
+  const [qrCountdown, setQrCountdown] = useState<string>('');
 
-  const [sandboxEnabled, setSandboxEnabled] = useState(false);
+  // Sync WeChat status from SSE real-time events
+  const wechatStatusSSE = useAppStore(s => s.wechatStatus);
+  const wechatQrSSE = useAppStore(s => s.wechatQr);
+  useEffect(() => {
+    if (wechatStatusSSE === 'connected') {
+      setWechatLoggedIn(true);
+      setWechatQr(null);
+    } else if (wechatStatusSSE === 'qr_ready') {
+      setWechatLoggedIn(false);
+    } else if (wechatStatusSSE === 'idle') {
+      setWechatLoggedIn(false);
+    }
+  }, [wechatStatusSSE]);
+  useEffect(() => {
+    if (wechatQrSSE) {
+      setWechatQr(wechatQrSSE);
+      setQrExpiresAt(Date.now() + 180000);
+    }
+  }, [wechatQrSSE]);
+
+  const [sandboxEnabled, setSandboxEnabled] = useState(true);  // match backend default (fileSandbox/execSandbox: true)
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; kind: 'success' | 'error' } | null>(null);
@@ -171,12 +193,12 @@ export default function SettingsPage() {
           }
         }
         if (voice.status === 'fulfilled' && voice.value) {
-          const v = voice.value as { voiceProvider?: string };
-          if (v.voiceProvider) setAsrEngine(v.voiceProvider);
+          const v = voice.value as { voice?: { voiceProvider?: string } };
+          if (v.voice?.voiceProvider) setAsrEngine(v.voice.voiceProvider);
         }
         if (tts.status === 'fulfilled' && tts.value) {
-          const t = tts.value as { ttsProvider?: string; ttsVoiceId?: string };
-          if (t.ttsVoiceId) setTtsVoice(t.ttsVoiceId);
+          const t = tts.value as { tts?: { ttsProvider?: string; ttsVoiceId?: string } };
+          if (t.tts?.ttsVoiceId) setTtsVoice(t.tts.ttsVoiceId);
         }
         if (status.status === 'fulfilled' && status.value && typeof (status.value as any).memory_count === 'number') setMemoryCount((status.value as any).memory_count);
         if (security.status === 'fulfilled' && security.value) {
@@ -185,8 +207,26 @@ export default function SettingsPage() {
         }
         if (voices.status === 'fulfilled' && voices.value) setVoiceStatus(voices.value.running ? 'online' : 'offline');
         if (ttss.status === 'fulfilled' && ttss.value) setTtsStatus(ttss.value.running ? 'online' : 'offline');
-        getJson('/social/feishu/status').then((fs: unknown) => { const d = fs as { connected?: boolean }; if (d.connected) setFeishuConnected(true); }).catch(() => {});
-        getJson('/social/wechat-clawbot/qr').then((qr: unknown) => { const d = qr as { qr_url?: string; logged_in?: boolean }; if (d.qr_url) setWechatQr(d.qr_url); if (d.logged_in) setWechatLoggedIn(true); }).catch(() => {});
+        getJson('/social/feishu/status').then((fs: unknown) => { const d = fs as { status?: string }; if (d.status === 'connected') setFeishuConnected(true); }).catch(() => {});
+        getJson('/social/wechat-clawbot/qr').then(async (qr: unknown) => {
+          const d = qr as { qr_url?: string; status?: string; logged_in?: boolean };
+          if (d.status === 'connected') {
+            setWechatLoggedIn(true);
+            setWechatQr(null);
+            return;
+          }
+          if (d.logged_in) setWechatLoggedIn(true);
+          if (d.qr_url && d.status === 'qr_ready') {
+            try {
+              const imgResp = await fetch(`${API_BASE}/social/wechat-clawbot/qr-image`);
+              if (imgResp.ok) {
+                const b64 = await imgResp.text();
+                setWechatQr(b64);
+                setQrExpiresAt(Date.now() + 180000);
+              }
+            } catch {}
+          }
+        }).catch(() => {});
       } catch {}
     }
     load();
@@ -203,17 +243,41 @@ export default function SettingsPage() {
     reader.onload = () => { const base64 = reader.result as string; localStorage.setItem('velora_ai_avatar', base64); setAiAvatar(base64); showToast('头像已更新'); };
     reader.readAsDataURL(file);
   };
+  // Retry-aware POST: the Node backend takes ~9-30s to start on first launch
+  // (synchronous system/desktop/software scans before server.listen(3721)).
+  // During that window fetch throws ECONNREFUSED (TypeError) — retry with backoff
+  // instead of failing activation outright.
+  const postJsonRetry = useCallback(async (path: string, body: unknown, retries = 10) => {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const res = await fetch(`${API_BASE}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return res.json();
+      } catch (err) {
+        lastErr = err;
+        // Network failure (backend not up yet) → wait and retry. Non-network errors (e.g. 400) rethrow immediately.
+        const isNetwork = err instanceof TypeError;
+        if (!isNetwork || attempt === retries) throw err;
+        await new Promise(r => setTimeout(r, 3000));
+      }
+    }
+    throw lastErr;
+  }, []);
+
   const handleSaveApiKey = async () => {
     const t = llmApiKey.trim(); if (!t) return;
     localStorage.setItem('velora_llm_api_key', t);
     try {
-      await postJson('/activate', { apiKey: t, model: model || 'deepseek-v4-pro', provider: 'xinyun', agentName: localAgentName || 'VeloraAgent' });
+      await postJsonRetry('/activate', { apiKey: t, model: model || 'deepseek-v4-pro', provider: 'xinyun', agentName: localAgentName || '闪电树懒' });
       showToast('已激活'); fetchModels();
     } catch {
       try {
-        const prep = await postJson('/activate/prepare', { apiKey: t, model: model || 'deepseek-v4-pro', provider: 'xinyun' }) as any;
-        if (prep?.token) { await postJson('/activate', { token: prep.token, apiKey: t, model: model || 'deepseek-v4-pro', provider: 'xinyun', agentName: localAgentName || 'VeloraAgent' }); showToast('已激活'); fetchModels(); }
-      } catch { showToast('激活失败', 'error'); }
+        const prep = await postJsonRetry('/activate/prepare', { apiKey: t, model: model || 'deepseek-v4-pro', provider: 'xinyun' }) as any;
+        if (prep?.token) { await postJsonRetry('/activate', { token: prep.token, apiKey: t, model: model || 'deepseek-v4-pro', provider: 'xinyun', agentName: localAgentName || '闪电树懒' }); showToast('已激活'); fetchModels(); }
+        else { showToast('激活失败', 'error'); }
+      } catch {
+        showToast('后端未启动，请稍后重试', 'error');
+      }
     }
   };
   const fetchModels = async () => { setFetchingModels(true); try { const data = await getJson('/settings') as any; if (data?.llm?.models) setAvailableModels(data.llm.models.filter((m: ModelInfo) => !m.deprecated)); } catch {} setFetchingModels(false); };
@@ -240,7 +304,24 @@ export default function SettingsPage() {
     try { await postJson('/settings/social', body); showToast('已保存'); } catch { showToast('失败', 'error'); }
   };
   const handleWechatLogout = async () => { try { await postJson('/social/wechat-clawbot/logout', {}); setWechatLoggedIn(false); showToast('已登出'); } catch { showToast('失败', 'error'); } };
-  const handleSaveSecurity = async () => { try { await postJson('/settings/security', { fileSandbox: sandboxEnabled, execSandbox: sandboxEnabled }); showToast('已保存'); } catch { showToast('失败', 'error'); } };
+  const handleConnectWechat = async () => { try { await postJson('/settings/social', { _clawbot_connect: '1' }); showToast('正在生成二维码…'); setTimeout(async () => { try { const qrResp = await getJson('/social/wechat-clawbot/qr'); const d = qrResp as { qr_url?: string; status?: string }; if (d?.qr_url && d?.status === 'qr_ready') { const imgResp = await fetch(`${API_BASE}/social/wechat-clawbot/qr-image`); if (imgResp.ok) { setWechatQr(await imgResp.text()); setQrExpiresAt(Date.now() + 180000); } } } catch {} }, 3000); } catch { showToast('启动失败', 'error'); } };
+
+  // QR code countdown timer
+  const qrSecondsLeft = qrExpiresAt ? Math.max(0, Math.floor((qrExpiresAt - Date.now()) / 1000)) : 0;
+  useEffect(() => {
+    if (!qrExpiresAt || qrExpiresAt <= Date.now()) return;
+    const update = () => {
+      const left = Math.max(0, Math.floor((qrExpiresAt - Date.now()) / 1000));
+      if (left <= 0) { setQrCountdown('二维码已过期，请刷新'); return; }
+      const m = Math.floor(left / 60);
+      const s = left % 60;
+      setQrCountdown(`二维码 ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} 后过期`);
+    };
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, [qrExpiresAt]);
+  const handleSaveSecurity = async () => { try { await postJsonRetry('/settings/security', { fileSandbox: sandboxEnabled, execSandbox: sandboxEnabled }); showToast('已保存'); } catch { showToast('失败', 'error'); } };
   const handleAdminAction = async (actionType: ConfirmAction) => { if (!actionType) return; setActionLoading(true); try { switch (actionType.type) { case 'restart': await postJson('/admin/restart', {}); showToast('正在重启...'); break; case 'reset-memories': await postJson('/admin/reset-memories', {}); setMemoryCount(0); showToast('已清除'); break; case 'reset-files': await postJson('/admin/reset-files', {}); showToast('已清除'); break; } } catch { showToast('操作失败', 'error'); } finally { setActionLoading(false); setConfirmAction(null); } };
   const handleToggleAI = async () => { try { if (aiRunning) { await postJson('/admin/stop', {}); setAIStatus('offline'); showToast('已暂停'); } else { await postJson('/admin/start', {}); setAIStatus('online'); showToast('已恢复'); } } catch { showToast('操作失败', 'error'); } };
 
@@ -509,7 +590,7 @@ export default function SettingsPage() {
         <div style={{ display:'flex', flexDirection:'column', gap:32 }}>
           <section style={C.section}>
             <div style={C.sectionHead}>Discord</div>
-            <div style={{ maxWidth:520 }}><div style={C.label}>Webhook URL</div><input type="password" value={discordWebhook} onChange={e => setDiscordWebhook(e.target.value)} style={C.input} placeholder="https://discord.com/api/webhooks/..." /></div>
+            <div style={{ maxWidth:520 }}><div style={C.label}>Bot Token</div><input type="password" value={discordWebhook} onChange={e => setDiscordWebhook(e.target.value)} style={C.input} placeholder="Bot &lt;token&gt;..." /></div>
           </section>
           <section style={C.section}>
             <div style={C.sectionHead}>飞书</div>
@@ -527,7 +608,25 @@ export default function SettingsPage() {
               <StatusBadge status={wechatLoggedIn ? 'online' : 'offline'} label={wechatLoggedIn ? '已登录' : '未登录'} />
               {wechatLoggedIn && <GlowButton size="sm" variant="ghost" onClick={handleWechatLogout}>登出</GlowButton>}
             </div>
-            {wechatQr && !wechatLoggedIn && <div style={{ display:'inline-flex', justifyContent:'center', padding:14, background:'#fff', borderRadius:14, marginTop:12 }}><img src={wechatQr} alt="QR" style={{ maxWidth:160, maxHeight:160 }} /></div>}
+            {!wechatLoggedIn && (
+              <div style={{ marginTop:8 }}>
+                {wechatQr ? (
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start', gap:6 }}>
+                    <div style={{ display:'inline-flex', justifyContent:'center', padding:14, background:'#fff', borderRadius:14, position:'relative' }}>
+                      <img src={`data:image/png;base64,${wechatQr}`} alt="微信扫码" style={{ width:160, height:160 }} />
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                      <span style={{ fontSize:11, color: qrSecondsLeft <= 30 ? '#FF5F57' : qrSecondsLeft <= 60 ? '#FFAB00' : '#8888BB' }}>
+                        {qrCountdown || '加载中…'}
+                      </span>
+                      <GlowButton size="sm" variant="ghost" onClick={handleConnectWechat}>刷新二维码</GlowButton>
+                    </div>
+                  </div>
+                ) : (
+                  <GlowButton size="sm" variant="primary" onClick={handleConnectWechat}>连接微信</GlowButton>
+                )}
+              </div>
+            )}
           </section>
           <GlowButton size="sm" variant="ghost" onClick={handleSaveSocial}>保存社交设置</GlowButton>
         </div>

@@ -86,7 +86,7 @@ function Sidebar() {
       >
         <img
           src="/sidebar-logo.png"
-          alt="VeloraAgent Logo"
+          alt="闪电树懒 Logo"
           style={{
             width: 'calc(100% - 10px)',
             aspectRatio: '1',

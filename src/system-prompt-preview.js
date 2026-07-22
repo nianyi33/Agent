@@ -39,7 +39,7 @@ export async function buildHeartbeatSystemPromptPreview({
   })
 
   const persona = getConfig('persona') || ''
-  const agentName = getConfig('agent_name') || 'VeloraAgent'
+  const agentName = getConfig('agent_name') || '闪电树懒'
   const entities = getKnownEntities()
   const birthTime = getOrInitBirthTime()
   const terminalStreamContext = formatTerminalStreamContext()

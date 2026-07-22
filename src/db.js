@@ -574,6 +574,20 @@ export function getAllClawbotTokens() {
   ).all()
 }
 
+export function getClawbotSyncBuf() {
+  const row = getDB().prepare(
+    `SELECT value FROM config WHERE key = 'clawbot_sync_buf'`
+  ).get()
+  return row ? row.value : ''
+}
+
+export function setClawbotSyncBuf(buf) {
+  getDB().prepare(
+    `INSERT INTO config (key, value, updated_at) VALUES ('clawbot_sync_buf', ?, datetime('now'))
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+  ).run(String(buf || ''))
+}
+
 export function insertUISignal({ type, target = null, payload = {}, ts = Date.now() }) {
   return getDB().prepare(
     `INSERT INTO ui_signals (type, target, payload, ts) VALUES (?, ?, ?, ?)`

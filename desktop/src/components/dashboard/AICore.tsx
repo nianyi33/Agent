@@ -387,7 +387,7 @@ export default function AICore() {
       <div
         id="r1"
         ref={r1Ref}
-        className="ring"
+       
         style={{
           ...ringBase,
           width: '86%',
@@ -400,7 +400,7 @@ export default function AICore() {
       <div
         id="r2"
         ref={r2Ref}
-        className="ring"
+       
         style={{
           ...ringBase,
           width: '93%',
@@ -413,7 +413,7 @@ export default function AICore() {
       <div
         id="r3"
         ref={r3Ref}
-        className="ring"
+       
         style={{
           ...ringBase,
           width: '79%',
@@ -426,7 +426,7 @@ export default function AICore() {
       <div
         id="r4"
         ref={r4Ref}
-        className="ring"
+       
         style={{
           ...ringBase,
           width: '99%',
@@ -439,7 +439,7 @@ export default function AICore() {
       <div
         id="r5"
         ref={r5Ref}
-        className="ring"
+       
         style={{
           ...ringBase,
           width: '73%',

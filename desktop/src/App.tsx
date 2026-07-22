@@ -12,6 +12,7 @@ import ChatZone from './components/chat/ChatZone';
 import SettingsPage from './components/settings/SettingsPage';
 import { useSSE } from './hooks/useSSE';
 import { useLoadHistory } from './hooks/useLoadHistory';
+import { API_BASE } from './lib/constants';
 import { useAppStore } from './stores/app-store';
 
 /* ── Startup Splash ── */
@@ -70,7 +71,7 @@ function StartupSplash({ onDone }: { onDone: () => void }) {
           background: 'rgba(99,91,255,0.05)',
         }}
       >
-        <img src="/app-logo.png" alt="VeloraAgent" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+        <img src="/app-logo.png" alt="闪电树懒" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
       </motion.div>
 
       {/* Title — fade up */}
@@ -81,7 +82,7 @@ function StartupSplash({ onDone }: { onDone: () => void }) {
         style={{ marginTop: 28, zIndex: 1, textAlign: 'center' }}
       >
         <div style={{ fontSize: 26, fontWeight: 700, color: '#F0F0FF', letterSpacing: '0.04em' }}>
-          VeloraAgent
+          闪电树懒
         </div>
         <div style={{ fontSize: 12, color: '#8888BB', marginTop: 6, letterSpacing: '0.08em' }}>
           v2.0 · 智能桌面助手
@@ -127,6 +128,36 @@ function App() {
   const activeRoute = useAppStore((s) => s.activeRoute);
   const isSettings = activeRoute === 'settings';
   const [showSplash, setShowSplash] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  // After splash fades, check if the user has already activated the app.
+  // Only show the welcome guide if the backend reports NOT activated.
+  useEffect(() => {
+    if (showSplash) return;
+    let cancelled = false;
+    // Poll /activation-status for up to 15s (backend may still be starting)
+    (async () => {
+      for (let i = 0; i < 10; i++) {
+        await new Promise(r => setTimeout(r, 1500));
+        if (cancelled) return;
+        try {
+          const res = await fetch(`${API_BASE}/activation-status`);
+          const data = await res.json();
+          if (!cancelled && data && !data.activated) {
+            setShowWelcome(true);
+          }
+          return; // got a real response, stop polling
+        } catch {
+          // backend not up yet — keep polling
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [showSplash]);
+
+  const dismissWelcome = () => {
+    setShowWelcome(false);
+  };
 
   // Close settings on Escape
   useEffect(() => {
@@ -163,6 +194,134 @@ function App() {
             {(activeRoute === 'home' || activeRoute === 'workspace' || activeRoute === 'agent-studio' || activeRoute === 'memory-universe' || activeRoute === 'tools') && <ChatZone />}
           </div>
         </MainLayout>
+
+        {/* Welcome Guide Modal */}
+        <AnimatePresence>
+          {showWelcome && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                onClick={dismissWelcome}
+                style={{
+                  position: 'fixed', inset: 0, zIndex: 100,
+                  background: 'rgba(0,0,0,0.6)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                }}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                style={{
+                  position: 'fixed',
+                  top: '50%', left: '50%',
+                  marginTop: -228, marginLeft: -220,
+                  width: 440, maxWidth: '92vw',
+                  zIndex: 101,
+                  borderRadius: 24,
+                  border: '1px solid rgba(150,150,255,0.2)',
+                  background: 'linear-gradient(160deg, rgba(20,22,60,0.98) 0%, rgba(10,13,30,0.98) 100%)',
+                  boxShadow: '0 0 80px rgba(99,91,255,0.2), 0 24px 60px rgba(0,0,0,0.5)',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Gradient accent top bar */}
+                <div style={{
+                  height: 4,
+                  background: 'linear-gradient(90deg, #635BFF, #8B5CFF, #FF8FB2)',
+                  borderRadius: '24px 24px 0 0',
+                }} />
+                <div style={{ padding: '32px 32px 28px' }}>
+                  {/* Icon */}
+                  <div style={{
+                    width: 56, height: 56, borderRadius: 16,
+                    background: 'linear-gradient(135deg, rgba(99,91,255,0.2), rgba(139,92,255,0.1))',
+                    border: '1px solid rgba(139,92,255,0.3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    marginBottom: 20,
+                  }}>
+                    <span style={{ fontSize: 28 }}>⚡</span>
+                  </div>
+                  {/* Title */}
+                  <div style={{
+                    fontSize: 20, fontWeight: 700, color: '#F0F0FF',
+                    marginBottom: 8, letterSpacing: '0.02em',
+                  }}>
+                    欢迎使用闪电树懒
+                  </div>
+                  {/* Body */}
+                  <p style={{
+                    fontSize: 13, color: '#A0A0CC', lineHeight: 1.7,
+                    margin: '0 0 24px',
+                  }}>
+                    闪电树懒 通过 <strong style={{ color: '#C0C0EE' }}>芯云 API 聚合平台</strong> 接入多种大模型，
+                    使用前需要先注册一个 API Key。
+                  </p>
+                  {/* Feature pills */}
+                  <div style={{
+                    display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' as const,
+                  }}>
+                    {['DeepSeek', 'GLM', 'Kimi', 'Qwen', 'MiniMax'].map(m => (
+                      <span key={m} style={{
+                        padding: '5px 10px', borderRadius: 8,
+                        backgroundColor: 'rgba(99,91,255,0.12)',
+                        border: '1px solid rgba(139,92,255,0.2)',
+                        fontSize: 11, color: '#8B5CFF',
+                        fontWeight: 600, letterSpacing: '0.02em',
+                      }}>{m}</span>
+                    ))}
+                  </div>
+                  {/* CTA: open website */}
+                  <a
+                    href="https://xinyuntoken.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={dismissWelcome}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      width: '100%', height: 48,
+                      borderRadius: 14,
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #635BFF, #8B5CFF)',
+                      color: '#fff', fontSize: 14, fontWeight: 600,
+                      cursor: 'pointer', textDecoration: 'none',
+                      letterSpacing: '0.03em',
+                      boxShadow: '0 0 24px rgba(99,91,255,0.35)',
+                      marginBottom: 12,
+                    }}
+                  >
+                    <span>🔗</span>
+                    <span>前往 芯云平台 注册 API Key</span>
+                    <span style={{ fontSize: 12, opacity: 0.7, marginLeft: 4 }}>xinyuntoken.com →</span>
+                  </a>
+                  {/* Skip */}
+                  <button
+                    onClick={dismissWelcome}
+                    style={{
+                      display: 'block', width: '100%',
+                      padding: '10px 0',
+                      border: '1px solid rgba(150,150,255,0.12)',
+                      borderRadius: 14,
+                      background: 'transparent',
+                      color: '#8888BB', fontSize: 12,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#C0C0EE'; e.currentTarget.style.borderColor = 'rgba(150,150,255,0.3)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = '#8888BB'; e.currentTarget.style.borderColor = 'rgba(150,150,255,0.12)'; }}
+                  >
+                    我已注册，去设置页绑定 Key
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         {/* Settings Modal — centered overlay */}
         <AnimatePresence>

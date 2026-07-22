@@ -30,15 +30,22 @@ export function useSSE() {
         case 'message':
           chat.finalizeStream();
           chat.setIsThinking(false);
+          // localReply: stream chunks already wrote the reply via finalizeStream.
+          // Only add a new message if the content differs from what was streamed.
           if (event.data?.content) {
-            chat.addMessage({
-              id: `msg-${Date.now()}`,
-              role: 'assistant',
-              content: event.data.content,
-              timestamp: new Date(event.ts).getTime(),
-              status: 'sent',
-              conversationId: event.data.conversation_id,
-            });
+            const msgs = useChatStore.getState().messages;
+            const lastMsg = msgs[msgs.length - 1];
+            const isDuplicate = lastMsg?.role === 'assistant' && lastMsg?.content === event.data.content;
+            if (!isDuplicate) {
+              chat.addMessage({
+                id: `msg-${Date.now()}`,
+                role: 'assistant',
+                content: event.data.content,
+                timestamp: new Date(event.ts).getTime(),
+                status: 'sent',
+                conversationId: event.data.conversation_id,
+              });
+            }
           }
           break;
 
@@ -69,7 +76,7 @@ export function useSSE() {
           break;
 
         case 'agent_name_updated':
-          app.setAgentName(event.data?.name || 'VeloraAgent');
+          app.setAgentName(event.data?.name || '闪电树懒');
           break;
 
         case 'model_switched':
@@ -90,6 +97,26 @@ export function useSSE() {
         case 'admin':
         case 'ui_signal':
         case 'focus_frame':
+          break;
+
+        // Social status events — picked up by SettingsPage via app-store
+        case 'social_status':
+          if (event.data?.platform === 'wechat-clawbot') {
+            if (event.data?.status === 'connected') {
+              app.setWechatStatus('connected');
+            } else if (event.data?.status === 'qr_ready' && event.data?.qr_url) {
+              app.setWechatStatus('qr_ready');
+              // Fetch QR image and store base64
+              fetch(`http://127.0.0.1:3721/social/wechat-clawbot/qr-image`)
+                .then(r => r.ok ? r.text() : null)
+                .then(b64 => { if (b64) app.setWechatQr(b64); })
+                .catch(() => {});
+            } else if (event.data?.status === 'idle') {
+              app.setWechatStatus('idle');
+            } else if (event.data?.status === 'session_expired') {
+              app.setWechatStatus('idle');
+            }
+          }
           break;
 
         case 'error':

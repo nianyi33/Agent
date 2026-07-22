@@ -10,24 +10,16 @@ export default function ChatMessageList() {
   const isThinking = useChatStore((s) => s.isThinking);
   const setIsThinking = useChatStore((s) => s.setIsThinking);
 
-  // Safety timeout: if thinking lasts > 20s with no response, clear it and show error hint
+  // Safety timeout: if thinking spinner runs > 60s with no stream event,
+  // silently stop the spinner. Do NOT add an error message — the backend's
+  // SSE may still deliver the reply (DeepSeek thinking mode can take 30-50s).
+  // If SSE is truly dead, the frontend polls /status every 10s and will
+  // eventually show an offline indicator.
   useEffect(() => {
     if (!isThinking) return;
     const t = setTimeout(() => {
       setIsThinking(false);
-      // Show a system hint if no reply arrived
-      const msgs = useChatStore.getState().messages;
-      const lastMsg = msgs[msgs.length - 1];
-      if (lastMsg?.role === 'user') {
-        useChatStore.getState().addMessage({
-          id: `timeout-${Date.now()}`,
-          role: 'system',
-          content: 'AI 回复超时，请检查网络或稍后重试。',
-          timestamp: Date.now(),
-          status: 'error',
-        });
-      }
-    }, 20000);
+    }, 60000);
     return () => clearTimeout(t);
   }, [isThinking, setIsThinking]);
 
@@ -80,7 +72,7 @@ export default function ChatMessageList() {
             color: '#555588',
           }}
         >
-          开始和VeloraAgent对话吧
+          开始和闪电树懒对话吧
         </div>
       )}
 
