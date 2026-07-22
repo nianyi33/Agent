@@ -37,8 +37,9 @@ jobs:
         run: npm ci
 
       - name: Install backend deps (platform-native)
+        shell: pwsh
         working-directory: .
-        run: npm ci --omit=dev
+        run: npm ci --omit=dev --ignore-scripts
 
       - name: Build Tauri (NSIS)
         uses: tauri-apps/tauri-action@v0
@@ -94,8 +95,9 @@ jobs:
         run: npm ci
 
       - name: Install backend deps (platform-native)
+        shell: pwsh
         working-directory: .
-        run: npm ci --omit=dev
+        run: npm ci --omit=dev --ignore-scripts
 
       - name: Build Tauri (DMG)
         uses: tauri-apps/tauri-action@v0
