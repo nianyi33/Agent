@@ -67,13 +67,14 @@ pub fn run() {
         println!("[闪电树懒] node_modules missing, attempting npm install (best-effort)...");
         let npm_bin = node_bin.replace("node.exe", "npm.cmd");
         let install_cmd = if std::path::Path::new(&npm_bin).exists() { npm_bin } else { "npm".to_string() };
-        let _ = Command::new(&install_cmd)
-          .args(["install", "--production"])
-          .current_dir(&backend_root)
-          .stdout(std::process::Stdio::null())
-          .stderr(std::process::Stdio::null())
-          .creation_flags(0x08000000)
-          .spawn()
+        let mut npm = Command::new(&install_cmd);
+        npm.args(["install", "--production"])
+           .current_dir(&backend_root)
+           .stdout(std::process::Stdio::null())
+           .stderr(std::process::Stdio::null());
+        #[cfg(target_os = "windows")]
+        { npm.creation_flags(0x08000000); }
+        let _ = npm.spawn()
           .and_then(|mut c| c.wait())
           .map(|s| println!("[闪电树懒] npm install exit: {}", s));
       }
