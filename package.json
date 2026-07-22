@@ -35,8 +35,7 @@
     "start:backend": "node --env-file=.env src/index.js",
     "build:npm": "node ./node_modules/@electron/rebuild/lib/cli.js -f -w better-sqlite3 -v 33.4.11 && electron-builder --win",
     "build": "node scripts/build-win.mjs",
-    "build:portable": "electron-builder --win --dir -c.win.signAndEditExecutable=false",
-    "postinstall": "electron-builder install-app-deps"
+    "build:portable": "electron-builder --win --dir -c.win.signAndEditExecutable=false"
   },
   "build": {
     "appId": "com.aiagent.desktop",
