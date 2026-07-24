@@ -114,3 +114,53 @@ jobs:
         with:
           name: 闪电树懒-macOS-DMG
           path: desktop/src-tauri/target/release/bundle/dmg/*.dmg
+
+  # ── Create GitHub Release ──
+  create-release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten artifact dirs
+        shell: bash
+        run: |
+          mkdir -p release-files
+          find artifacts -type f \( -name "*.exe" -o -name "*.dmg" \) -exec cp {} release-files/ \;
+          ls -lh release-files/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "闪电树懒 v0.1.3"
+          tag_name: "v0.1.3"
+          body: |
+            ## 闪电树懒 v0.1.3
+
+            智能桌面助手 — Tauri 桌面应用，内置 Node.js 运行时 + 35 个 Agent 技能。
+
+            ### 下载
+            - **Windows**: 双击 NSIS 安装包（无需管理员权限）
+            - **macOS**: 下载 `.dmg`，拖入 Applications
+
+            ### 使用
+            1. 安装后启动应用
+            2. 前往 https://xinyuntoken.com/ 注册 API Key
+            3. 设置页 → 通用 → 输入 Key → 激活
+            4. 开始使用
+
+            ### v0.1.3 更新
+            - 思考块完整实现 + 自主tick省token
+            - 前端设置页全线加固（30s重试窗口）
+            - 安全审计14项修复 + 部分LLM挂死修复
+            - 热点/世界杯后台自动刷新
+            - 三主题切换 + 亮度调节
+          files: release-files/*
+          draft: false
+          prerelease: false
+          make_latest: true
