@@ -85,7 +85,7 @@ function StartupSplash({ onDone }: { onDone: () => void }) {
           闪电树懒
         </div>
         <div style={{ fontSize: 12, color: '#8888BB', marginTop: 6, letterSpacing: '0.08em' }}>
-          v2.0 · 智能桌面助手
+          v0.1.3 · 智能桌面助手
         </div>
       </motion.div>
 
