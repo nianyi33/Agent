@@ -39,7 +39,7 @@ jobs:
       - name: Install backend deps (platform-native)
         shell: pwsh
         working-directory: .
-        run: npm ci --omit=dev --ignore-scripts
+        run: npm ci --omit=dev
 
       - name: Build Tauri (NSIS)
         working-directory: desktop
