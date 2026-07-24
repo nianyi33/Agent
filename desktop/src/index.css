@@ -1,5 +1,10 @@
 @import 'tailwindcss';
 
+:root {
+  --color-bg-primary-rgb: 8, 11, 36;
+  --color-bg-secondary-rgb: 10, 15, 45;
+}
+
 @theme {
   --color-bg-primary: #080B24;
   --color-bg-secondary: #0A0F2D;
@@ -115,3 +120,35 @@ html, body, #root {
 #core-wrap[data-state="speaking"] #core-img {
   filter: drop-shadow(0 0 60px rgba(0,212,255,0.7)) brightness(1.1);
 }
+
+/* ── Theme: 纯黑 ── */
+html[data-theme="black"] {
+  --color-bg-primary: #000000;
+  --color-bg-secondary: #0A0A0A;
+  --color-bg-primary-rgb: 0, 0, 0;
+  --color-bg-secondary-rgb: 10, 10, 10;
+  --color-glass-bg: rgba(255, 255, 255, 0.05);
+  --color-glass-border: rgba(255, 255, 255, 0.10);
+  --color-glass-border-hover: rgba(255, 255, 255, 0.22);
+  --color-glass-border-active: rgba(255, 255, 255, 0.35);
+  --color-text-primary: #E8E8E8;
+  --color-text-secondary: #888888;
+  --color-text-muted: #555555;
+}
+
+/* ── Theme: 亮白 ── */
+html[data-theme="white"] {
+  --color-bg-primary: #F5F5F7;
+  --color-bg-secondary: #FFFFFF;
+  --color-bg-primary-rgb: 245, 245, 247;
+  --color-bg-secondary-rgb: 255, 255, 255;
+  --color-glass-bg: rgba(0, 0, 0, 0.04);
+  --color-glass-border: rgba(0, 0, 0, 0.08);
+  --color-glass-border-hover: rgba(0, 0, 0, 0.18);
+  --color-glass-border-active: rgba(99, 91, 255, 0.40);
+  --color-text-primary: #1A1A2E;
+  --color-text-secondary: #666680;
+  --color-text-muted: #9999AA;
+}
+
+html[data-core-visible="false"] #core-wrap { display: none; }

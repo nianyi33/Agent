@@ -77,7 +77,7 @@ function StatPill({ label, value, active }: { label: string; value: string; acti
       textAlign:'center',
     }}>
       <div style={{ fontSize:10, color:'var(--color-text-muted)', marginBottom:2 }}>{label}</div>
-      <div style={{ fontSize:12, fontWeight:600, color: active ? '#8B5CFF' : '#8888BB', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{value}</div>
+      <div style={{ fontSize:12, fontWeight:600, color: active ? '#8B5CFF' : 'var(--color-text-secondary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{value}</div>
     </div>
   );
 }

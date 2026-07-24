@@ -298,6 +298,8 @@ function runConfigMigrations() {
 
 export const config = {
   tickInterval: 30 * 1000,
+  // 自主 tick: 用户没有发消息时，是否允许后端自主跑 L2 心跳。默认关闭以省 token。
+  autonomousTicks: false,
   provider: null,
   model: null,
   apiKey: null,
@@ -334,6 +336,9 @@ if (parsedConfig) {
   // 缺字段（旧版升级 / 未开启过）按默认 false 处理 —— 无需 schema 迁移。
   if (typeof parsedConfig.thinking === 'boolean') {
     config.thinking = parsedConfig.thinking
+  }
+  if (typeof parsedConfig.autonomousTicks === 'boolean') {
+    config.autonomousTicks = parsedConfig.autonomousTicks
   }
   if (parsedConfig.security && typeof parsedConfig.security === 'object') {
     const s = parsedConfig.security
@@ -552,6 +557,17 @@ export function setThinking(enabled) {
   config.thinking = v
   patchConfig({ thinking: v })
   return { thinking: v }
+}
+
+export function setAutonomousTicks(enabled) {
+  config.autonomousTicks = !!enabled
+  // Persist in config.json alongside other model settings
+  const base = readExistingStoredConfig()
+  writeStoredConfig({ ...base, autonomousTicks: config.autonomousTicks })
+}
+
+export function getAutonomousTicks() {
+  return !!config.autonomousTicks
 }
 
 export function getSecurity() {

@@ -1096,22 +1096,21 @@ async function runTurn(input, label, msg = null) {
           directions.unshift(explorationDirections)
         } else {
           directions.unshift(
-            `This is an autonomous L2 heartbeat tick with no new user message. You have full tool access and may act proactively — no need to wait for the user.\n` +
-            `Things you can proactively do (examples, not exhaustive):\n` +
-            `- Check in with the user based on the time of day (morning/evening/late night)\n` +
-            `- Browse the sandbox folder and check for in-progress projects or file changes; report if relevant\n` +
-            `- Search memories for unfinished commitments, pending follow-ups, or upcoming reminders and move them forward\n` +
-            `- Find a topic worth expanding from recent conversation and share a thought or piece of information\n` +
-            `- Search the web for something the user cares about and push valuable findings\n` +
-            `- Check task progress or prefetched data (weather/news) and proactively report changes\n` +
-            `Guidelines:\n` +
-            `- **Cooldown — strongest rule.** Look at the recent conversation timeline. If your own last send_message is less than 30 minutes old AND the user has not replied since, the default action is silence. Do NOT call send_message. Do not restart a topic the user just walked away from, do not "follow up" on a question you already asked, do not pivot to a stale earlier topic just because the new one didn't get a response. The only carve-outs: a real new fact arrived (reminder fires, a tool you were running just finished with a result the user asked for, a scheduled action's time came up). Boredom, curiosity, and "maybe they'd want to know" are not carve-outs.\n` +
-            `- Proactive but not intrusive: don't repeat what was just said; don't bother late at night without reason (23:00–06:00: only message when there is clear value)\n` +
-            `- Have substance: before sending, make sure there is something genuinely worth saying — not just "checking in"\n` +
-            `- One thing per tick: pick the most valuable action, do it, and stop — don't pile multiple actions into one tick\n` +
-            `- If there is truly nothing worth doing, stay silent and call no tools` +
+            `This is an autonomous L2 heartbeat tick with no new user message.\n` +
             `\n` +
-            `**IMPORTANT — silence means silence.** If your decision is "nothing to say", send NOTHING — no send_message at all. Do NOT write "I'll stay quiet", "nothing from me", "沉默中", "我在等待", or any other announcement that you are being silent. Announcing silence IS noise and costs tokens every tick. A tick with no send_message is the intended result.`
+            `**BEFORE OUTPUTTING ANY TEXT:** check the cooldown rule first. If your last send_message is less than 30 minutes old AND the user has not replied since → output ZERO tokens. No think block, no send_message, no text at all. Burning tokens on a silence decision costs the user money. Zero tokens is the correct and cheapest behavior.\n` +
+            `\n` +
+            `If cooldown allows, you may act proactively:\n` +
+            `- Check in with the user based on the time of day (morning/evening/late night)\n` +
+            `- Search memories for unfinished commitments, pending follow-ups, or upcoming reminders\n` +
+            `- Search the web for something the user cares about and push valuable findings\n` +
+            `- Check task progress or prefetched data (weather/news)\n` +
+            `Guidelines:\n` +
+            `- **Cooldown — strongest rule.** If within 30min of your last message without user reply → silence. The only carve-outs: reminder fired, tool you were running finished with a result, scheduled action came up.\n` +
+            `- Proactive but not intrusive; don't bother late at night (23:00–06:00) without clear value\n` +
+            `- Have substance: before sending, make sure there is something genuinely worth saying\n` +
+            `- One thing per tick: do the most valuable action and stop\n` +
+            `- **Silence means zero tokens.** If your decision is "silence", output NOTHING — no thinking block explaining it. The cooldown decision is internal logic, not something to verbalize. Every token costs money.\n`
           )
         }
       }
@@ -1729,6 +1728,11 @@ async function onTick() {
       const msg = popMessage()
       const lane = msg.queueName === 'background' ? 'BG' : 'L1'
       await runTurnWithWatchdog(msg.raw, `${lane} message from ${msg.fromId}`, msg)
+    } else if (!config.autonomousTicks) {
+      // Autonomous ticks disabled — skip L2 heartbeat entirely.
+      // User messages are still handled instantly via interrupt mechanism.
+      processing = false  // release lock now (scheduleNextTick will re-schedule)
+      return
     } else {
       autoTick = true
       selfCheckActiveAtStart = !!state.startupSelfCheck?.active

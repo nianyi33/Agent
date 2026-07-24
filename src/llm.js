@@ -234,25 +234,28 @@ async function streamOnce({ messages, toolSchemas, temperature, topP, maxTokens,
     }
 
     // DeepSeek reasoner 思考内容（独立字段，不在 content 里）
+    // Buffer internally — emit the complete block once when thinking ends
     const reasoningText = delta?.reasoning_content || delta?.reasoningContent || delta?.reasoning
     if (reasoningText) {
       fullReasoningContent += reasoningText
-      if (!thinkDone) {
-        inThink = true
-        if (!streamStarted) {
-          onStream?.({ event: 'start', mode: 'think' })
-          // Prefix so the frontend can detect and render the thinking block
-          onStream?.({ event: 'chunk', text: '思考：\n' })
-          streamStarted = true
-        }
-        onStream?.({ event: 'chunk', text: reasoningText })
-      }
+      inThink = true
       continue
     }
 
     // 文本增量
     const text = delta?.content
     if (!text) continue
+
+    // DeepSeek: thinking phase just ended — emit the complete buffered block
+    if (inThink && !thinkDone) {
+      thinkDone = true
+      inThink = false
+      if (fullReasoningContent) {
+        onStream?.({ event: 'start', mode: 'think' })
+        onStream?.({ event: 'chunk', text: '思考：\n' + fullReasoningContent + '\n\n' })
+        streamStarted = false  // reset so answer text triggers a fresh 'text' start
+      }
+    }
 
     // Non-DeepSeek models with thinking ON: the system prompt instructs
     // the LLM to begin with "思考：". If the first text token already
@@ -261,20 +264,9 @@ async function streamOnce({ messages, toolSchemas, temperature, topP, maxTokens,
     if (!nonNativeThinkingPrefix && !thinkDone && thinking) {
       nonNativeThinkingPrefix = true
       if (!text.startsWith('思考') && !text.startsWith('思')) {
-        if (!streamStarted) { onStream?.({ event: 'start', mode: 'think' }); streamStarted = true }
+        onStream?.({ event: 'start', mode: 'think' })
         onStream?.({ event: 'chunk', text: '思考：\n' })
-      }
-    }
-
-    // DeepSeek：思考流结束、进入正式回答时，先关闭 think 流
-    if (inThink && !thinkDone) {
-      inThink = false
-      thinkDone = true
-      if (streamStarted) {
-        // Insert separator so the frontend can split thinking from answer
-        onStream?.({ event: 'chunk', text: '\n\n' })
         onStream?.({ event: 'end' })
-        streamStarted = false
       }
     }
 

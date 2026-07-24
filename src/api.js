@@ -14,7 +14,7 @@ import { getQuotaStatus } from './quota.js'
 import { isRunning, stopLoop, startLoop } from './control.js'
 import { buildHeartbeatSystemPromptPreview } from './system-prompt-preview.js'
 import { paths } from './paths.js'
-import { config, activate as activateLLM, prepareActivation as prepareLLMActivation, commitPreparedActivation, getActivationStatus, switchModel, saveLLMSettings, setTemperature, setThinking, getMinimaxKey, setMinimaxKey, getSocialConfig, setSocialConfig, getVoiceConfig, setVoiceConfig, getTTSConfig, setTTSConfig, getTTSCredentials, getProviderSummaries, getSecurity, setSecurity, getNetworkConfig, setNetworkConfig, getEmbeddingConfig, setEmbeddingConfig, EMBEDDING_PROVIDER_PRESETS, getWebSearchConfig, setWebSearchConfig } from './config.js'
+import { config, activate as activateLLM, prepareActivation as prepareLLMActivation, commitPreparedActivation, getActivationStatus, switchModel, saveLLMSettings, setTemperature, setThinking, getMinimaxKey, setMinimaxKey, getSocialConfig, setSocialConfig, getVoiceConfig, setVoiceConfig, getTTSConfig, setTTSConfig, getTTSCredentials, getProviderSummaries, getSecurity, setSecurity, getNetworkConfig, setNetworkConfig, getEmbeddingConfig, setEmbeddingConfig, EMBEDDING_PROVIDER_PRESETS, getWebSearchConfig, setWebSearchConfig, setAutonomousTicks, getAutonomousTicks } from './config.js'
 import { streamTTS, TTS_PROVIDERS, TTS_VOICES, validateTTSConfig } from './voice/tts-providers.js'
 import { restartConnector } from './social/index.js'
 // manager.js (Whisper local server) removed
@@ -1319,6 +1319,20 @@ export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = n
           jsonResponse(res, 400, { ok: false, error: err.message })
         }
       })
+      return
+    }
+
+    // POST /settings/autonomous-ticks — toggle whether the AI can act on its own when no user message is pending
+    if (req.method === 'POST' && url.pathname === '/settings/autonomous-ticks') {
+      ;(async () => {
+        try {
+          const { enabled } = await readJsonBody(req)
+          setAutonomousTicks(enabled)
+          jsonResponse(res, 200, { ok: true, autonomousTicks: getAutonomousTicks() })
+        } catch (err) {
+          jsonResponse(res, 400, { ok: false, error: err.message })
+        }
+      })()
       return
     }
 

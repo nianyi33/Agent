@@ -75,7 +75,8 @@ function render(){
     let tags='';
     if(it.isNew) tags+='<span class="tag n">NEW</span>';
     if(it.tag&&it.tag!=='0') tags+=`<span class="tag h">${it.tag}</span>`;
-    return `<a class="item" href="${it.url||'#'}" target="_blank" rel="noopener">
+    const url = it.url||'';
+    return `<a class="item" href="${url}" target="_blank" rel="noopener" onclick="if(window.parent!==window){window.parent.postMessage({type:'open_url',url:'${url}'},'*');return false}">
       <span class="r${i<3?' t':''}">${it.rank||i+1}</span>
       <span class="l">${it.title.replace(/</g,'&lt;')}</span>
       <span class="m">${it.heat&&it.heat!=='0'?it.heat:''} ${tags}</span>

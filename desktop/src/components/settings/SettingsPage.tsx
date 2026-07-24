@@ -177,14 +177,6 @@ export default function SettingsPage() {
     setToast({ message, kind }); setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const postJson = useCallback(async (path: string, body: unknown) => {
-    const res = await fetch(`${API_BASE}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    return res.json();
-  }, []);
-  const getJson = useCallback(async (path: string) => {
-    const res = await fetch(`${API_BASE}${path}`);
-    return res.json();
-  }, []);
 
   useEffect(() => { setLocalAgentName(agentName); }, [agentName]);
 
@@ -198,8 +190,8 @@ export default function SettingsPage() {
     async function load() {
       try {
         const [settings, voice, tts, status, _social, security, voices, ttss] = await Promise.allSettled([
-          getJson('/settings'), getJson('/settings/voice'), getJson('/settings/tts'), getJson('/status'),
-          getJson('/settings/social'), getJson('/settings/security'), getJson('/voice/status'), getJson('/tts/status'),
+          getJsonRetry('/settings'), getJsonRetry('/settings/voice'), getJsonRetry('/settings/tts'), getJsonRetry('/status'),
+          getJsonRetry('/settings/social'), getJsonRetry('/settings/security'), getJsonRetry('/voice/status'), getJsonRetry('/tts/status'),
         ]);
         if (cancelled) return;
         if (settings.status === 'fulfilled' && settings.value) {
@@ -227,8 +219,8 @@ export default function SettingsPage() {
         }
         if (voices.status === 'fulfilled' && voices.value) setVoiceStatus(voices.value.running ? 'online' : 'offline');
         if (ttss.status === 'fulfilled' && ttss.value) setTtsStatus(ttss.value.running ? 'online' : 'offline');
-        getJson('/social/feishu/status').then((fs: unknown) => { const d = fs as { status?: string }; if (d.status === 'connected') setFeishuConnected(true); }).catch(() => {});
-        getJson('/social/wechat-clawbot/qr').then(async (qr: unknown) => {
+        getJsonRetry('/social/feishu/status').then((fs: unknown) => { const d = fs as { status?: string }; if (d.status === 'connected') setFeishuConnected(true); }).catch(() => {});
+        getJsonRetry('/social/wechat-clawbot/qr').then(async (qr: unknown) => {
           const d = qr as { qr_url?: string; status?: string; logged_in?: boolean };
           if (d.status === 'connected') {
             setWechatLoggedIn(true);
@@ -251,12 +243,12 @@ export default function SettingsPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [getJson, setModelName]);
+  }, [setModelName]);
 
   // ── Handlers (unchanged logic) ──
-  const handleSaveAgentName = async () => { const t = localAgentName.trim(); if (!t) return; setSavingName(true); try { await postJson('/settings/agent-name', { agent_name: t }); storeSetAgentName(t); showToast('已保存'); } catch { showToast('失败', 'error'); } finally { setSavingName(false); } };
-  const handleTemperature = async (v: number) => { setTemperature(v); localStorage.setItem('velora_temperature', String(v)); try { await postJson('/settings/temperature', { temperature: v }); } catch {} };
-  const handleThinkingToggle = async (enabled: boolean) => { setThinking(enabled); localStorage.setItem('velora_thinking', String(enabled)); try { await postJson('/settings/thinking', { thinking: enabled }); } catch {} };
+  const handleSaveAgentName = async () => { const t = localAgentName.trim(); if (!t) return; setSavingName(true); try { await postJsonRetry('/settings/agent-name', { agent_name: t }); storeSetAgentName(t); showToast('已保存'); } catch { showToast('失败', 'error'); } finally { setSavingName(false); } };
+  const handleTemperature = async (v: number) => { setTemperature(v); localStorage.setItem('velora_temperature', String(v)); try { await postJsonRetry('/settings/temperature', { temperature: v }); } catch {} };
+  const handleThinkingToggle = async (enabled: boolean) => { setThinking(enabled); localStorage.setItem('velora_thinking', String(enabled)); try { await postJsonRetry('/settings/thinking', { thinking: enabled }); } catch {} };
   const handleAvatarUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
@@ -284,6 +276,23 @@ export default function SettingsPage() {
     throw lastErr;
   }, []);
 
+  // Retry-aware GET helper — mirrors postJsonRetry for data loading paths
+  const getJsonRetry = useCallback(async (path: string, retries = 10) => {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const res = await fetch(`${API_BASE}${path}`);
+        return res.json();
+      } catch (err) {
+        lastErr = err;
+        const isNetwork = err instanceof TypeError;
+        if (!isNetwork || attempt === retries) throw err;
+        await new Promise(r => setTimeout(r, 3000));
+      }
+    }
+    throw lastErr;
+  }, []);
+
   const handleSaveApiKey = async () => {
     const t = llmApiKey.trim(); if (!t) return;
     localStorage.setItem('velora_llm_api_key', t);
@@ -300,31 +309,31 @@ export default function SettingsPage() {
       }
     }
   };
-  const fetchModels = async () => { setFetchingModels(true); try { const data = await getJson('/settings') as any; if (data?.llm?.models) setAvailableModels(data.llm.models.filter((m: ModelInfo) => !m.deprecated)); } catch {} setFetchingModels(false); };
+  const fetchModels = async () => { setFetchingModels(true); try { const data = await getJsonRetry('/settings') as any; if (data?.llm?.models) setAvailableModels(data.llm.models.filter((m: ModelInfo) => !m.deprecated)); } catch {} setFetchingModels(false); };
   const handleSelectModel = async (modelId: string) => {
     setModel(modelId);
-    try { await postJson('/settings/model', { provider: 'xinyun', model: modelId }); setModelName(modelId); localStorage.setItem('velora_model', modelId); showToast(`已切换到 ${modelId}`); }
+    try { await postJsonRetry('/settings/model', { provider: 'xinyun', model: modelId }); setModelName(modelId); localStorage.setItem('velora_model', modelId); showToast(`已切换到 ${modelId}`); }
     catch { showToast('切换失败', 'error'); }
   };
   const handleSaveVoice = async () => {
     const t = voiceApiKey.trim();
     if (t) localStorage.setItem('velora_voice_api_key', t);
     localStorage.setItem('velora_asr_engine', asrEngine); localStorage.setItem('velora_asr_lang', asrLang);
-    try { await postJson('/settings/voice', { voiceProvider: asrEngine, aliyunApiKey: t || undefined }); showToast('已保存'); } catch { showToast('失败', 'error'); }
+    try { await postJsonRetry('/settings/voice', { voiceProvider: asrEngine, aliyunApiKey: t || undefined }); showToast('已保存'); } catch { showToast('失败', 'error'); }
   };
-  const handleSaveTTS = async () => { localStorage.setItem('velora_tts_voice', ttsVoice); const t = voiceApiKey.trim(); try { await postJson('/settings/tts', { ttsProvider: 'aliyun', ttsVoiceId: ttsVoice, aliyunKey: t || undefined }); showToast('已保存'); } catch { showToast('失败', 'error'); } };
-  const handleSaveSearch = async () => { localStorage.setItem('velora_search_engine', searchEngine); localStorage.setItem('velora_search_key', searchApiKey); try { await postJson('/settings/web-search', { serperKey: searchApiKey }); showToast('已保存'); } catch { showToast('失败', 'error'); } };
-  const handleTestEmbedding = async () => { setEmbedTesting(true); setEmbedTestResult(null); try { const res = (await postJson('/settings/embedding/test', {})) as { ok?: boolean; error?: string }; setEmbedTestResult(res.ok ? '连接成功' : `失败: ${res.error || '未知'}`); } catch { setEmbedTestResult('请求失败'); } finally { setEmbedTesting(false); } };
-  const handleSaveEmbedding = async () => { try { await postJson('/settings/embedding', { model: embedModel }); showToast('已保存'); } catch { showToast('失败', 'error'); } };
+  const handleSaveTTS = async () => { localStorage.setItem('velora_tts_voice', ttsVoice); const t = voiceApiKey.trim(); try { await postJsonRetry('/settings/tts', { ttsProvider: 'aliyun', ttsVoiceId: ttsVoice, aliyunKey: t || undefined }); showToast('已保存'); } catch { showToast('失败', 'error'); } };
+  const handleSaveSearch = async () => { localStorage.setItem('velora_search_engine', searchEngine); localStorage.setItem('velora_search_key', searchApiKey); try { await postJsonRetry('/settings/web-search', { serperKey: searchApiKey }); showToast('已保存'); } catch { showToast('失败', 'error'); } };
+  const handleTestEmbedding = async () => { setEmbedTesting(true); setEmbedTestResult(null); try { const res = (await postJsonRetry('/settings/embedding/test', {})) as { ok?: boolean; error?: string }; setEmbedTestResult(res.ok ? '连接成功' : `失败: ${res.error || '未知'}`); } catch { setEmbedTestResult('请求失败'); } finally { setEmbedTesting(false); } };
+  const handleSaveEmbedding = async () => { try { await postJsonRetry('/settings/embedding', { model: embedModel }); showToast('已保存'); } catch { showToast('失败', 'error'); } };
   const handleSaveSocial = async () => {
     const body: Record<string, string> = {};
     if (discordWebhook.trim()) body['DISCORD_BOT_TOKEN'] = discordWebhook.trim();
     if (feishuAppId.trim()) body['FEISHU_APP_ID'] = feishuAppId.trim();
     if (feishuAppSecret.trim()) body['FEISHU_APP_SECRET'] = feishuAppSecret.trim();
-    try { await postJson('/settings/social', body); showToast('已保存'); } catch { showToast('失败', 'error'); }
+    try { await postJsonRetry('/settings/social', body); showToast('已保存'); } catch { showToast('失败', 'error'); }
   };
-  const handleWechatLogout = async () => { try { await postJson('/social/wechat-clawbot/logout', {}); setWechatLoggedIn(false); showToast('已登出'); } catch { showToast('失败', 'error'); } };
-  const handleConnectWechat = async () => { try { await postJson('/settings/social', { _clawbot_connect: '1' }); showToast('正在生成二维码…'); setTimeout(async () => { try { const qrResp = await getJson('/social/wechat-clawbot/qr'); const d = qrResp as { qr_url?: string; status?: string }; if (d?.qr_url && d?.status === 'qr_ready') { const imgResp = await fetch(`${API_BASE}/social/wechat-clawbot/qr-image`); if (imgResp.ok) { setWechatQr(await imgResp.text()); setQrExpiresAt(Date.now() + 180000); } } } catch {} }, 3000); } catch { showToast('启动失败', 'error'); } };
+  const handleWechatLogout = async () => { try { await postJsonRetry('/social/wechat-clawbot/logout', {}); setWechatLoggedIn(false); showToast('已登出'); } catch { showToast('登出失败，请稍后重试', 'error'); } };
+  const handleConnectWechat = async () => { try { await postJsonRetry('/settings/social', { _clawbot_connect: '1' }); showToast('正在生成二维码…'); setTimeout(async () => { try { const qrResp = await getJsonRetry('/social/wechat-clawbot/qr'); const d = qrResp as { qr_url?: string; status?: string }; if (d?.qr_url && d?.status === 'qr_ready') { const imgResp = await fetch(`${API_BASE}/social/wechat-clawbot/qr-image`); if (imgResp.ok) { setWechatQr(await imgResp.text()); setQrExpiresAt(Date.now() + 180000); } } } catch {} }, 3000); } catch { showToast('启动失败', 'error'); } };
 
   // QR code countdown timer
   const qrSecondsLeft = qrExpiresAt ? Math.max(0, Math.floor((qrExpiresAt - Date.now()) / 1000)) : 0;
@@ -342,8 +351,8 @@ export default function SettingsPage() {
     return () => clearInterval(t);
   }, [qrExpiresAt]);
   const handleSaveSecurity = async () => { try { await postJsonRetry('/settings/security', { fileSandbox: sandboxEnabled, execSandbox: sandboxEnabled }); showToast('已保存'); } catch { showToast('失败', 'error'); } };
-  const handleAdminAction = async (actionType: ConfirmAction) => { if (!actionType) return; setActionLoading(true); try { switch (actionType.type) { case 'restart': await postJson('/admin/restart', {}); showToast('正在重启...'); break; case 'reset-memories': await postJson('/admin/reset-memories', {}); setMemoryCount(0); showToast('已清除'); break; case 'reset-files': await postJson('/admin/reset-files', {}); showToast('已清除'); break; } } catch { showToast('操作失败', 'error'); } finally { setActionLoading(false); setConfirmAction(null); } };
-  const handleToggleAI = async () => { try { if (aiRunning) { await postJson('/admin/stop', {}); setAIStatus('offline'); showToast('已暂停'); } else { await postJson('/admin/start', {}); setAIStatus('online'); showToast('已恢复'); } } catch { showToast('操作失败', 'error'); } };
+  const handleAdminAction = async (actionType: ConfirmAction) => { if (!actionType) return; setActionLoading(true); try { switch (actionType.type) { case 'restart': await postJsonRetry('/admin/restart', {}); showToast('正在重启...'); break; case 'reset-memories': await postJsonRetry('/admin/reset-memories', {}); setMemoryCount(0); showToast('已清除'); break; case 'reset-files': await postJsonRetry('/admin/reset-files', {}); showToast('已清除'); break; } } catch { showToast('操作失败', 'error'); } finally { setActionLoading(false); setConfirmAction(null); } };
+  const handleToggleAI = async () => { try { if (aiRunning) { await postJsonRetry('/admin/stop', {}); setAIStatus('offline'); showToast('已暂停'); } else { await postJsonRetry('/admin/start', {}); setAIStatus('online'); showToast('已恢复'); } } catch { showToast('操作失败', 'error'); } };
 
   const renderSelect = (value: string, onChange: (e: ChangeEvent<HTMLSelectElement>) => void, options: readonly string[]) => (
     <select value={value} onChange={onChange} style={{

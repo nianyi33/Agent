@@ -42,7 +42,7 @@ export default function TaskPanel() {
       <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom: hasContent ? 12 : 0 }}>
         <Activity size={14} style={{ color:'#8B5CFF' }} />
         <span style={{ fontSize:12, fontWeight:600, color:'var(--color-text-primary)', letterSpacing:'0.02em' }}>AI 活动</span>
-        {tasks.length > 0 && <span style={{ fontSize:10, color:'#555588', marginLeft:'auto', background:'rgba(99,91,255,0.1)', padding:'2px 7px', borderRadius:6 }}>{tasks.length}</span>}
+        {tasks.length > 0 && <span style={{ fontSize:10, color:'var(--color-text-muted)', marginLeft:'auto', background:'rgba(99,91,255,0.1)', padding:'2px 7px', borderRadius:6 }}>{tasks.length}</span>}
       </div>
 
       {/* Action pulse */}
@@ -80,8 +80,8 @@ export default function TaskPanel() {
       {/* Empty */}
       {!hasContent && (
         <div style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 0', justifyContent:'center' }}>
-          <ListTodo size={13} style={{ color:'#555588' }} />
-          <span style={{ fontSize:11, color:'#555588' }}>等待活动</span>
+          <ListTodo size={13} style={{ color:'var(--color-text-muted)' }} />
+          <span style={{ fontSize:11, color:'var(--color-text-muted)' }}>等待活动</span>
         </div>
       )}
 

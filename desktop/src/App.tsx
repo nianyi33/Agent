@@ -130,6 +130,28 @@ function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
 
+  // Listen for URLs from hotspot/worldcup iframes (Tauri WebView2 blocks target="_blank")
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'open_url' && e.data?.url) {
+        window.open(e.data.url, '_blank');
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  // Restore appearance settings on mount
+  useEffect(() => {
+    const v = parseFloat(localStorage.getItem('lightningsloth_brightness') || '1.0');
+    const el = document.getElementById('root') as HTMLElement | null;
+    if (el) el.style.filter = `brightness(${v})`;
+    const t = localStorage.getItem('lightningsloth_theme') || 'purple';
+    document.documentElement.setAttribute('data-theme', t);
+    const show = localStorage.getItem('lightningsloth_showCoreLogo');
+    if (show === 'false') document.documentElement.setAttribute('data-core-visible', 'false');
+  }, []);
+
   // After splash fades, check if the user has already activated the app.
   // Only show the welcome guide if the backend reports NOT activated.
   useEffect(() => {

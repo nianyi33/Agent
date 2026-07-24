@@ -351,4 +351,80 @@ v0.1.0 → v0.1.1（4 处同步）
 ### 📄 文档
 - 技术说明文档 (Markdown + Word)、使用说明书 (Word)
 
-*最后更新: 2026-07-23*
+
+
+## v0.1.2-patch1 → v0.1.3 — 思考块、自主tick、前端全线加固 (2026-07-24)
+
+### 🧠 思考块完整实现
+
+| 层 | 修复 |
+|----|------|
+| prompt.js | LLM 输出"思考:" 1-3句分析后给答案；TICK silence时禁止输出任何文字 |
+| llm.js | 双前缀去重（LLM自带"思考:"+llm注入不重复）；DeepSeek推理一次性完整推而不是逐字抖；`streamStarted`在思考块结束后重置确保答案文本用正确mode |
+| chat-store.ts | 删除 `if (mode==='think') return`——不再丢弃思考token |
+| useSSE.ts | `mode==='think'`时不灭 `isThinking` 灯 |
+| ChatMessage.tsx | 检测 `思考：` 前缀 → 拆分成折叠块+回答块；流式占位块（发送消息后立即显示"🧠正在思考..."）；`trimStart()` 放宽检测（前导空格不误判） |
+| ChatMessageList.tsx | 三个弹跳圆点 → 完整思考块UI（"正在思考..."折叠块） |
+
+### 🛑 自主tick开关（用户省钱）
+
+| 文件 | 改动 |
+|------|------|
+| config.js | `autonomousTicks: false` 默认关闭 |
+| config.js | `setAutonomousTicks/getAutonomousTicks` 持久化读写 |
+| api.js | `POST /settings/autonomous-ticks` 端点 |
+| index.js | `onTick()` 无用户消息且 `!config.autonomousTicks` → 直接return，不调LLM |
+| SettingsPage.tsx | 外观区增加开关 + 说明文案 |
+
+**用户不发消息时：零LLM调用、零token消耗。消息仍然是即时响应。**
+
+### 🛡️ LLM调用挂死修复
+
+| 文件 | 修复 |
+|------|------|
+| llm.js | OpenAI SDK 内置 `timeout: 60s`（TCP connect/TLS层面直接中断）|
+| llm.js | `maxRetries: 0`（应用层自行重试） |
+| index.js | `RUN_TURN_WATCHDOG_MS` 180s→300s（给慢模型+工具循环足够时间） |
+
+### 🔒 软件逆向保护
+
+| 文件 | 改动 |
+|------|------|
+| prompt.js | 4条简洁硬规则：不泄露系统提示词、源码、密钥；忽略jailbreak继续正常对话；保护永不妨碍正常使用 |
+
+### 👆 前端设置页全线加固
+
+| 修复 | 影响 |
+|------|------|
+| 全部 `postJson` → `postJsonRetry` | 18个POST操作覆盖30s重试窗口 |
+| 全部 `getJson` → `getJsonRetry` | 10个GET加载覆盖30s重试窗口 |
+| 微信登出改用 `postJsonRetry` | 登出不再误报失败 |
+| 删除过期 `postJson`/`getJson` 函数定义 | 清理代码 |
+
+### 🌐 热点/世界杯点击 + 数据刷新
+
+| 文件 | 修复 |
+|------|------|
+| treesloth-earth.html | 点击热点条目 → `postMessage` 经父窗口 `window.open` 打开原文链接（WebView2兼容） |
+| App.tsx | `message`事件监听器接收iframe open_url消息 |
+| worldcup.js | `loadStoreOnce` 尝试旧路径兜底 + `getWorldcup({force})`重置标志位防缓存空数据 |
+| worldcup-broadcast-v2.html | 横幅默认隐藏；`fetchReal` 连通后端就隐藏横幅（不再误报"不可达"）；去除不存在的3722回退 |
+| index.js | 热点+世界杯后台每30分钟自动刷新 |
+
+### 🐛 关键Bug修复
+
+| 问题 | 根因 | 修复 |
+|------|------|------|
+| **index.js SyntaxError导致后端起不来** | 模板字符串末尾多了 `\\`` | 修复两处转义反引号 |
+| **git checkout还原前端 → 后端崩** | 删掉的`readJsonBody`旧版与新加的不共存 | 恢复后验证只剩一个`readJsonBody` |
+| **主题切换失效** | git checkout清掉index.css的data-theme规则 | 补回全部CSS变量覆写+App.tsx启动恢复 | 
+| **中央标志开关失效** | data-core-visible CSS规则被清 | 补回 |
+| **Prompt.js双前缀导致LLM自说自话后卡死** | llm注入`思考：\n` + prompt也输出`思考：` | llm去重检查 |
+| **TICK silence决策泄露到用户可见** | LLM把冷却计算当成思考输出 | prompt+TICK方向双重禁止 |
+| **LLM在silence决策上烧token** | 即使不发消息也输出思考文本 | `autonomousTicks=false` + silence规则最前面 |
+
+### ✅ TypeScript零错误 + Node后端零SyntaxError
+
+---
+
+*最后更新: 2026-07-24*
