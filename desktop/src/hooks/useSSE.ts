@@ -14,13 +14,15 @@ export function useSSE() {
       switch (event.type) {
         case 'stream_start':
           chat.setIsStreaming(true);
-          chat.setIsThinking(false);
+          // Keep thinking visible when backend enters thinking mode
+          if (event.data?.mode !== 'think') chat.setIsThinking(false);
           break;
 
         case 'stream_chunk':
-          chat.setIsThinking(false);
-          // Pass mode — 'think' tokens are discarded by appendStreamChunk
-          chat.appendStreamChunk(event.data?.text || '', event.data?.mode);
+          // Mode 'think': reasoning content — keep thinking block alive.
+          // Mode 'text' (or no mode): reply content — switch from thinking to reply.
+          if (event.data?.mode !== 'think') chat.setIsThinking(false);
+          chat.appendStreamChunk(event.data?.text || '');
           break;
 
         case 'stream_end':

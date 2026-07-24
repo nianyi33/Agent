@@ -30,7 +30,7 @@ export const useAppStore = create<AppStore>((set) => ({
   activeRoute: 'home',
   setActiveRoute: (route) => set({ activeRoute: route }),
 
-  aiStatus: 'online',
+  aiStatus: 'offline',
   setAIStatus: (status) => set({ aiStatus: status }),
 
   chatOpen: false,

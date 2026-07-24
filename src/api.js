@@ -206,6 +206,27 @@ function jsonResponse(res, status, body) {
   res.end(JSON.stringify(body))
 }
 
+// Read JSON request body with a hard size cap (default 1MB).
+// Returns parsed object. Throws on oversized or malformed input.
+async function readJsonBody(req, maxBytes = 1_048_576) {
+  const chunks = []
+  let size = 0
+  return new Promise((resolve, reject) => {
+    req.on('data', (chunk) => {
+      size += chunk.length
+      if (size > maxBytes) { req.destroy(); reject(new Error('request too large')) }
+      else { chunks.push(chunk) }
+    })
+    req.on('end', () => {
+      try {
+        const raw = Buffer.concat(chunks).toString('utf-8')
+        resolve(JSON.parse(raw || '{}'))
+      } catch (e) { reject(new Error('invalid JSON')) }
+    })
+    req.on('error', (e) => reject(e))
+  })
+}
+
 function getRequestCharset(contentType = '') {
   const match = String(contentType || '').match(/(?:^|;)\s*charset\s*=\s*"?([^";\s]+)"?/i)
   return match?.[1]?.trim().toLowerCase() || ''
@@ -244,22 +265,6 @@ function decodeRequestBody(buffer, contentType = '') {
   } catch {
     return buffer.toString('utf8')
   }
-}
-
-function readJsonBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = []
-    req.on('data', chunk => chunks.push(chunk))
-    req.on('end', () => {
-      try {
-        const raw = decodeRequestBody(Buffer.concat(chunks), req.headers['content-type'])
-        resolve(raw ? JSON.parse(raw) : {})
-      } catch (err) {
-        reject(err)
-      }
-    })
-    req.on('error', reject)
-  })
 }
 
 function collectInboundChatMedia(body = {}) {
@@ -408,8 +413,14 @@ export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = n
     if (storedName) setStickyEvent('agent_name_updated', { name: storedName })
   } catch {}
   const server = http.createServer(async (req, res) => {
-    const base = `http://localhost:${port}`
-    const url = new URL(req.url, base)
+    let url
+    try {
+      const base = `http://localhost:${port}`
+      url = new URL(req.url, base)
+    } catch {
+      try { jsonResponse(res, 400, { error: 'bad request' }) } catch {}
+      return
+    }
     const origin = req.headers.origin
 
     // GET /social/wechat-clawbot/qr — get current QR code status and URL
@@ -1159,12 +1170,9 @@ export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = n
 
     // POST /activate/prepare — validate and cache activation without entering the app
     if (req.method === 'POST' && url.pathname === '/activate/prepare') {
-      const chunks = []
-      req.on('data', chunk => chunks.push(chunk))
-      req.on('end', async () => {
+      ;(async () => {
         try {
-          const body = Buffer.concat(chunks).toString('utf-8')
-          const { apiKey, model, provider, baseURL } = JSON.parse(body || '{}')
+          const { apiKey, model, provider, baseURL } = await readJsonBody(req)
           const info = await prepareLLMActivation({ provider, apiKey, model, baseURL })
           const pending = storePreparedActivation({ apiKey, info })
           jsonResponse(res, 200, {
@@ -1177,18 +1185,15 @@ export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = n
         } catch (err) {
           jsonResponse(res, 400, { ok: false, error: err.message })
         }
-      })
+      })()
       return
     }
 
     // POST /activate — submit API key to complete activation
     if (req.method === 'POST' && url.pathname === '/activate') {
-      const chunks = []
-      req.on('data', chunk => chunks.push(chunk))
-      req.on('end', async () => {
+      ;(async () => {
         try {
-          const body = Buffer.concat(chunks).toString('utf-8')
-          const { apiKey, model, provider, baseURL, agentName, preparedToken } = JSON.parse(body || '{}')
+          const { apiKey, model, provider, baseURL, agentName, preparedToken } = await readJsonBody(req)
 
           const trimmedName = validateAgentName(agentName)
 
@@ -2174,7 +2179,8 @@ export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = n
   })
 
   server.on('upgrade', (req, socket, head) => {
-    const url = new URL(req.url, `http://localhost:${port}`)
+    let url
+    try { url = new URL(req.url, `http://localhost:${port}`) } catch { socket.destroy(); return }
     if (url.pathname === '/scene') {
       const origin = req.headers.origin
       if (origin && !isAllowedOrigin(origin)) {
@@ -2187,13 +2193,23 @@ export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = n
         socket.destroy()
         return
       }
-      sceneWss.handleUpgrade(req, socket, head, (ws) => sceneWss.emit('connection', ws, req))
+      try { sceneWss.handleUpgrade(req, socket, head, (ws) => sceneWss.emit('connection', ws, req)) } catch { socket.destroy() }
     } else if (url.pathname === '/voice/cloud') {
-      cloudWss.handleUpgrade(req, socket, head, (ws) => cloudWss.emit('connection', ws, req))
+      try { cloudWss.handleUpgrade(req, socket, head, (ws) => cloudWss.emit('connection', ws, req)) } catch { socket.destroy() }
     } else {
       socket.destroy()
     }
   })
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[API] Port ${port} is already in use. Another instance may be running.`)
+    } else {
+      console.error(`[API] Server error:`, err.message)
+    }
+  })
+
+  sceneWss.on('error', (err) => console.error('[Scene] WSS error:', err.message))
 
   server.listen(port, host, () => {
     console.log(`[API] Listening at http://${host}:${port}`)

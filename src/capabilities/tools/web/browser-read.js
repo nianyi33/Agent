@@ -96,7 +96,7 @@ export async function execBrowserRead(args, context = {}) {
   } catch (err) {
     if (err.name === 'AbortError') throw err
     // 浏览器崩溃或断开时，清掉单例让下次重建
-    invalidateSharedBrowser()
+    await invalidateSharedBrowser()
     return webJson({
       ok: false,
       tool: 'browser_read',

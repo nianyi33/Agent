@@ -49,7 +49,7 @@ function Sidebar() {
             onClick={() => setActiveRoute(item.route)}
             className="group relative flex items-center justify-center gap-3 h-[52px] rounded-[16px] px-4 text-[13px] font-medium tracking-[0.02em] transition-all duration-200 cursor-pointer border-none w-full"
             style={{
-              color: isActive ? '#F0F0FF' : '#8888BB',
+              color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
               ...(isActive
                 ? {
                     background: 'linear-gradient(90deg, #635BFF, #8B5CFF)',

@@ -31,23 +31,26 @@ export default function AIStatusCard() {
         if (typeof s.memory_count === 'number') setMemoryCount(s.memory_count);
         setIsRunning(s.running === true);
         useAppStore.getState().setAIStatus(s.running ? 'online' : 'idle');
-      } catch {}
+      } catch {
+        useAppStore.getState().setAIStatus('offline');
+      }
     };
     fetch();
     const t = setInterval(fetch, 10000);
     return () => clearInterval(t);
   }, []);
 
-  const dotColor = aiStatus === 'online' ? '#00E676' : aiStatus === 'busy' ? '#FFAB00' : '#555588';
-  const statusText = aiStatus === 'online' ? '在线' : aiStatus === 'busy' ? '忙碌' : '空闲';
+  const dotColor = aiStatus === 'online' ? '#00E676' : aiStatus === 'busy' ? '#FFAB00' : '#FF5252';
+  const statusText = aiStatus === 'online' ? '在线' : aiStatus === 'busy' ? '忙碌' :
+    aiStatus === 'offline' ? '离线' : '空闲';
 
   return (
     <GlassPanel variant="light" className="w-[min(300px,22vw)]" padding>
       {/* Title row */}
       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
         <span style={{ width:7, height:7, borderRadius:'50%', background:dotColor, boxShadow:`0 0 8px ${dotColor}`, flexShrink:0 }} />
-        <span style={{ fontSize:12, fontWeight:600, color:'#C0C0EE', letterSpacing:'0.02em' }}>{agentName}</span>
-        <span style={{ fontSize:10, color:'#555588', marginLeft:'auto' }}>{statusText}</span>
+        <span style={{ fontSize:12, fontWeight:600, color:'var(--color-text-primary)', letterSpacing:'0.02em' }}>{agentName}</span>
+        <span style={{ fontSize:10, color:'var(--color-text-muted)', marginLeft:'auto' }}>{statusText}</span>
       </div>
 
       {/* Stat pills */}
@@ -73,7 +76,7 @@ function StatPill({ label, value, active }: { label: string; value: string; acti
       border: `1px solid ${active ? 'rgba(99,91,255,0.25)' : 'rgba(150,150,255,0.08)'}`,
       textAlign:'center',
     }}>
-      <div style={{ fontSize:10, color:'#555588', marginBottom:2 }}>{label}</div>
+      <div style={{ fontSize:10, color:'var(--color-text-muted)', marginBottom:2 }}>{label}</div>
       <div style={{ fontSize:12, fontWeight:600, color: active ? '#8B5CFF' : '#8888BB', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{value}</div>
     </div>
   );

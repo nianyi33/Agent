@@ -41,7 +41,7 @@ export default function TaskPanel() {
       {/* Title */}
       <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom: hasContent ? 12 : 0 }}>
         <Activity size={14} style={{ color:'#8B5CFF' }} />
-        <span style={{ fontSize:12, fontWeight:600, color:'#C0C0EE', letterSpacing:'0.02em' }}>AI 活动</span>
+        <span style={{ fontSize:12, fontWeight:600, color:'var(--color-text-primary)', letterSpacing:'0.02em' }}>AI 活动</span>
         {tasks.length > 0 && <span style={{ fontSize:10, color:'#555588', marginLeft:'auto', background:'rgba(99,91,255,0.1)', padding:'2px 7px', borderRadius:6 }}>{tasks.length}</span>}
       </div>
 
@@ -50,7 +50,7 @@ export default function TaskPanel() {
         <div style={{
           display:'flex', alignItems:'center', gap:6, padding:'7px 10px', borderRadius:8, marginBottom:8,
           background:'rgba(99,91,255,0.08)', border:'1px solid rgba(99,91,255,0.15)',
-          fontSize:11, color:'#A0A0CC',
+          fontSize:11, color:'var(--color-text-secondary)',
         }}>
           <span style={{ width:5, height:5, borderRadius:'50%', background:'#8B5CFF', animation:'pp 1s ease-in-out infinite' }} />
           {action}

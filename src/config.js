@@ -297,7 +297,7 @@ function runConfigMigrations() {
 }
 
 export const config = {
-  tickInterval: 20 * 60 * 1000,
+  tickInterval: 30 * 1000,
   provider: null,
   model: null,
   apiKey: null,

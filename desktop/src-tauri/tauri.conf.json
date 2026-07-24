@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "闪电树懒",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "com.lightningsloth.aios",
   "build": {
     "frontendDist": "../dist",

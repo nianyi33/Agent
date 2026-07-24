@@ -49,7 +49,7 @@ const C = {
     outline: 'none', width: '100%', fontFamily: 'inherit',
   } satisfies React.CSSProperties,
   display: {
-    background: 'rgba(15,18,40,0.95)', border: '1px solid rgba(150,150,255,0.1)',
+    background: 'rgba(var(--color-bg-primary-rgb), 0.95)', border: '1px solid rgba(150,150,255,0.1)',
     borderRadius: 10, padding: '9px 14px', fontSize: 12, color: '#8B5CFF',
     fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.02em',
   } satisfies React.CSSProperties,
@@ -94,6 +94,26 @@ export default function SettingsPage() {
   const [fetchingModels, setFetchingModels] = useState(false);
   const [temperature, setTemperature] = useState(() => parseFloat(localStorage.getItem('velora_temperature') || '0.7'));
   const [thinking, setThinking] = useState(() => localStorage.getItem('velora_thinking') === 'true');
+  const [brightness, setBrightness] = useState(() => parseFloat(localStorage.getItem('lightningsloth_brightness') || '1.0'));
+  const updateBrightness = useCallback((v: number) => {
+    setBrightness(v);
+    localStorage.setItem('lightningsloth_brightness', String(v));
+    const el = document.getElementById('root') as HTMLElement | null;
+    if (el) el.style.filter = `brightness(${v})`;
+  }, []);
+  const [theme, setTheme] = useState(() => localStorage.getItem('lightningsloth_theme') || 'purple');
+  const applyTheme = useCallback((t: string) => {
+    setTheme(t);
+    localStorage.setItem('lightningsloth_theme', t);
+    document.documentElement.setAttribute('data-theme', t);
+  }, []);
+  const [showCoreLogo, setShowCoreLogo] = useState(() => localStorage.getItem('lightningsloth_showCoreLogo') !== 'false');
+  const toggleCoreLogo = useCallback(() => {
+    const next = !showCoreLogo;
+    setShowCoreLogo(next);
+    localStorage.setItem('lightningsloth_showCoreLogo', String(next));
+    document.documentElement.setAttribute('data-core-visible', String(next));
+  }, [showCoreLogo]);
   const [llmApiKey, setLlmApiKey] = useState(() => localStorage.getItem('velora_llm_api_key') || '');
   const [showLlmKey, setShowLlmKey] = useState(false);
   const [aiAvatar, setAiAvatar] = useState(localStorage.getItem('velora_ai_avatar') || '');
@@ -327,7 +347,7 @@ export default function SettingsPage() {
 
   const renderSelect = (value: string, onChange: (e: ChangeEvent<HTMLSelectElement>) => void, options: readonly string[]) => (
     <select value={value} onChange={onChange} style={{
-      ...C.input, background: 'rgba(15,18,40,0.95)',
+      ...C.input, background: 'rgba(var(--color-bg-primary-rgb), 0.95)',
       backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238B5CFF' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")`,
       backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center', paddingRight: 36,
       appearance: 'none' as const, WebkitAppearance: 'none' as const, MozAppearance: 'none' as const, cursor: 'pointer',
@@ -351,7 +371,7 @@ export default function SettingsPage() {
                     <input type={showLlmKey ? 'text' : 'password'} value={llmApiKey} onChange={e => setLlmApiKey(e.target.value)}
                       style={{ ...C.input, paddingRight:36 }} placeholder="sk-..." />
                     <button onClick={() => setShowLlmKey(p => !p)}
-                      style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'#8888BB', cursor:'pointer', padding:4 }}>
+                      style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'var(--color-text-secondary)', cursor:'pointer', padding:4 }}>
                       {showLlmKey ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
                   </div>
@@ -385,7 +405,7 @@ export default function SettingsPage() {
                 </div>
                 <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleAvatarUpload} style={{ display:'none' }} />
                 <button onClick={() => fileInputRef.current?.click()}
-                  style={{ fontSize:11, color:'#8888BB', background:'none', border:'none', cursor:'pointer', padding:0 }}>
+                  style={{ fontSize:11, color:'var(--color-text-secondary)', background:'none', border:'none', cursor:'pointer', padding:0 }}>
                   <Upload size={10} style={{ marginRight:2 }} />更换
                 </button>
               </div>
@@ -431,7 +451,7 @@ export default function SettingsPage() {
               }
               return ['DeepSeek','GLM','Kimi','Qwen','MiniMax','MiMo','Other'].filter(v => groups[v]).map(v => (
                 <div key={v} style={{ marginBottom:12 }}>
-                  <div style={{ fontSize:10, fontWeight:600, color:'#555588', letterSpacing:'0.06em', marginBottom:6 }}>{v}</div>
+                  <div style={{ fontSize:10, fontWeight:600, color:'var(--color-text-muted)', letterSpacing:'0.06em', marginBottom:6 }}>{v}</div>
                   <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                     {groups[v].map(m => {
                       const active = model === m.id;
@@ -452,7 +472,7 @@ export default function SettingsPage() {
               ));
             })()}
             {availableModels.length === 0 && !fetchingModels && (
-              <span style={{ fontSize:12, color:'#555588' }}>输入 API Key 并激活后可加载模型列表</span>
+              <span style={{ fontSize:12, color:'var(--color-text-muted)' }}>输入 API Key 并激活后可加载模型列表</span>
             )}
             <div style={{ borderTop:'1px solid rgba(150,150,255,0.08)', paddingTop:14, marginTop:18, maxWidth:520 }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
@@ -464,9 +484,57 @@ export default function SettingsPage() {
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:14 }}>
                 <div>
                   <div style={{ ...C.label, marginBottom:0 }}>深度思考</div>
-                  <div style={{ fontSize:10, color:'#555588', marginTop:2 }}>DeepSeek 模型在回复前先推理</div>
+                  <div style={{ fontSize:10, color:'var(--color-text-muted)', marginTop:2 }}>回复前先展示推理过程，适用全部模型</div>
                 </div>
                 {toggleButton(thinking, () => handleThinkingToggle(!thinking))}
+              </div>
+            </div>
+          </section>
+
+          {/* ── 外观 ── */}
+          <section style={C.section}>
+            <div style={C.sectionHead}>外观</div>
+            <div style={C.sectionSub}>主题与亮度</div>
+            <div style={{ maxWidth:520 }}>
+              {/* Theme picker — buttons ARE the preview, no glass */}
+              <div style={{ display:'flex', gap:8, marginBottom:18 }}>
+                {[
+                  { id:'purple', label:'暗紫', bg:'#0D1130', text:'#D0D0F0', sub:'默认' },
+                  { id:'black',  label:'纯黑', bg:'#0A0A0F', text:'#B0B0B0', sub:'深色' },
+                  { id:'white',  label:'亮白', bg:'#F0F0F3', text:'#333355', sub:'浅色' },
+                ].map(t => {
+                  const active = theme === t.id;
+                  return (
+                    <button key={t.id} onClick={() => applyTheme(t.id)}
+                      style={{
+                        flex:1, height:64, borderRadius:14, cursor:'pointer',
+                        border: active ? '2px solid #8B5CFF' : '1px solid rgba(150,150,255,0.18)',
+                        background: t.bg, fontFamily:'inherit', padding:'0', outline:'none',
+                        transition:'all 0.15s',
+                        position:'relative', overflow:'hidden',
+                      }}>
+                      <span style={{ fontSize:13, fontWeight:600, color:t.text }}>{t.label}</span>
+                      <span style={{ display:'block', fontSize:10, color:t.id==='white'?'#8888AA':'#666688' }}>{t.sub}</span>
+                      {active && <span style={{ position:'absolute', top:6, right:8, fontSize:10, color:'#8B5CFF' }}>●</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Brightness */}
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <span style={{ fontSize:12, color:'var(--color-text-secondary)' }}>亮度</span>
+                <span style={{ fontSize:12, fontWeight:600, color:'var(--color-text-primary)' }}>{brightness.toFixed(1)}</span>
+              </div>
+              <input type="range" min="0.5" max="1.5" step="0.05" value={brightness}
+                onChange={e => updateBrightness(parseFloat(e.target.value))}
+                style={{ width:'100%', accentColor:'#635BFF', height:6, cursor:'pointer' }} />
+              {/* Core logo toggle */}
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:16, paddingTop:16, borderTop:'1px solid rgba(150,150,255,0.1)' }}>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:600, color:'var(--color-text-primary)' }}>中央 AI 标志</div>
+                  <div style={{ fontSize:10, color:'var(--color-text-muted)', marginTop:2 }}>关闭后简化 Dashboard 中央区域</div>
+                </div>
+                {toggleButton(showCoreLogo, toggleCoreLogo)}
               </div>
             </div>
           </section>
@@ -486,7 +554,7 @@ export default function SettingsPage() {
                     <input type={showVoiceKey ? 'text' : 'password'} value={voiceApiKey} onChange={e => setVoiceApiKey(e.target.value)}
                       style={{ ...C.input, paddingRight:36 }} placeholder="sk-..." />
                     <button onClick={() => setShowVoiceKey(p => !p)}
-                      style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'#8888BB', cursor:'pointer', padding:4 }}>
+                      style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'var(--color-text-secondary)', cursor:'pointer', padding:4 }}>
                       {showVoiceKey ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
                   </div>
@@ -528,12 +596,12 @@ export default function SettingsPage() {
             <div style={{ display:'flex', flexDirection:'column', gap:10, maxWidth:520 }}>
               <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:10, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(150,150,255,0.08)' }}>
                 <Zap size={14} style={{ color: voiceStatus === 'online' ? '#00E676' : '#555588' }} />
-                <span style={{ fontSize:12, color:'#C0C0EE', flex:1 }}>ASR 识别服务</span>
+                <span style={{ fontSize:12, color:'var(--color-text-primary)', flex:1 }}>ASR 识别服务</span>
                 <StatusBadge status={voiceStatus === 'online' ? 'online' : 'offline'} label={voiceStatus === 'online' ? '在线' : '离线'} />
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:10, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(150,150,255,0.08)' }}>
                 <Zap size={14} style={{ color: ttsStatus === 'online' ? '#00E676' : '#555588' }} />
-                <span style={{ fontSize:12, color:'#C0C0EE', flex:1 }}>TTS 合成服务</span>
+                <span style={{ fontSize:12, color:'var(--color-text-primary)', flex:1 }}>TTS 合成服务</span>
                 <StatusBadge status={ttsStatus === 'online' ? 'online' : 'offline'} label={ttsStatus === 'online' ? '就绪' : '离线'} />
               </div>
             </div>
@@ -554,7 +622,7 @@ export default function SettingsPage() {
                   <input type={showSearchKey ? 'text' : 'password'} value={searchApiKey} onChange={e => setSearchApiKey(e.target.value)}
                     style={{ ...C.input, paddingRight:36 }} placeholder="输入 API Key..." />
                   <button onClick={() => setShowSearchKey(p => !p)}
-                    style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'#8888BB', cursor:'pointer', padding:4 }}>
+                    style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'var(--color-text-secondary)', cursor:'pointer', padding:4 }}>
                     {showSearchKey ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
@@ -580,7 +648,7 @@ export default function SettingsPage() {
           </div>
           <div style={{ marginTop:20, display:'flex', alignItems:'center', gap:12, padding:'14px 18px', borderRadius:14, background:'rgba(99,91,255,0.06)', border:'1px solid rgba(99,91,255,0.1)', maxWidth:520 }}>
             <Brain size={18} style={{ color:'#8B5CFF', flexShrink:0 }} />
-            <span style={{ fontSize:12, color:'#8888BB', flex:1 }}>已存储记忆</span>
+            <span style={{ fontSize:12, color:'var(--color-text-secondary)', flex:1 }}>已存储记忆</span>
             <span style={{ fontSize:24, fontWeight:700, color:'#8B5CFF', fontFamily:'"JetBrains Mono", monospace' }}>{memoryCount}</span>
           </div>
         </section>
@@ -639,7 +707,7 @@ export default function SettingsPage() {
             <div style={C.sectionSub}>暂停后 AI 不再处理消息和自主 tick</div>
             <div style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 18px', borderRadius:14, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(150,150,255,0.1)', maxWidth:520 }}>
               <div style={{ width:10, height:10, borderRadius:'50%', background: aiRunning ? '#00E676' : '#555588', boxShadow: aiRunning ? '0 0 10px #00E676' : 'none', flexShrink:0 }} />
-              <span style={{ fontSize:13, fontWeight:600, color:'#F0F0FF', flex:1 }}>{aiRunning ? '运行中' : '已暂停'}</span>
+              <span style={{ fontSize:13, fontWeight:600, color:'var(--color-text-primary)', flex:1 }}>{aiRunning ? '运行中' : '已暂停'}</span>
               <GlowButton size="sm" variant={aiRunning ? 'ghost' : 'primary'} onClick={handleToggleAI}>{aiRunning ? '暂停' : '启动'}</GlowButton>
             </div>
           </section>
@@ -678,8 +746,8 @@ export default function SettingsPage() {
           <div style={C.sectionSub}>启用后 AI 的文件读写和命令执行限制在沙箱目录内</div>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 18px', borderRadius:14, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(150,150,255,0.1)', maxWidth:520 }}>
             <div>
-              <div style={{ fontSize:12, fontWeight:600, color:'#F0F0FF' }}>文件系统隔离</div>
-              <div style={{ fontSize:10, color:'#555588', marginTop:2 }}>限制 AI 可访问的路径范围</div>
+              <div style={{ fontSize:12, fontWeight:600, color:'var(--color-text-primary)' }}>文件系统隔离</div>
+              <div style={{ fontSize:10, color:'var(--color-text-muted)', marginTop:2 }}>限制 AI 可访问的路径范围</div>
             </div>
             {toggleButton(sandboxEnabled, () => setSandboxEnabled(p => !p))}
           </div>
@@ -695,25 +763,25 @@ export default function SettingsPage() {
 
   return (
     <div style={{ display:'flex', height:'100%', width:'100%', overflow:'hidden' }}>
-      <style>{`select option { background:#0D1130; color:#F0F0FF; } select:focus, input:focus { border-color:rgba(99,91,255,0.5)!important; box-shadow:0 0 12px rgba(99,91,255,0.15); }`}</style>
+      <style>{`select option { background:var(--color-bg-secondary); color:#F0F0FF; } select:focus, input:focus { border-color:rgba(99,91,255,0.5)!important; box-shadow:0 0 12px rgba(99,91,255,0.15); }`}</style>
 
       {/* ── Left sidebar ── */}
       <div style={{
         width:210, flexShrink:0, borderRight:'1px solid rgba(150,150,255,0.12)',
         display:'flex', flexDirection:'column',
-        background:'rgba(10,13,30,0.85)', backdropFilter:'blur(40px)', WebkitBackdropFilter:'blur(40px)',
+        background:'rgba(var(--color-bg-primary-rgb), 0.85)', backdropFilter:'blur(40px)', WebkitBackdropFilter:'blur(40px)',
       }}>
         <div style={{ padding:'20px 14px 16px' }}>
           <button onClick={() => useAppStore.getState().setActiveRoute('home')}
             style={{ display:'flex', alignItems:'center', gap:8, background:'none', border:'none',
-              color:'#8888BB', fontSize:12, cursor:'pointer', padding:'8px 10px', borderRadius:10,
+              color:'var(--color-text-secondary)', fontSize:12, cursor:'pointer', padding:'8px 10px', borderRadius:10,
               transition:'all 0.15s' }}
             onMouseEnter={e => { e.currentTarget.style.color='#F0F0FF'; e.currentTarget.style.background='rgba(255,255,255,0.04)'; }}
             onMouseLeave={e => { e.currentTarget.style.color='#8888BB'; e.currentTarget.style.background='none'; }}>
             <ArrowLeft size={15} />返回
           </button>
         </div>
-        <div style={{ fontSize:10, fontWeight:600, color:'#555588', letterSpacing:'0.08em', padding:'0 16px 10px', textTransform:'uppercase' }}>设置</div>
+        <div style={{ fontSize:10, fontWeight:600, color:'var(--color-text-muted)', letterSpacing:'0.08em', padding:'0 16px 10px', textTransform:'uppercase' }}>设置</div>
         {TABS.map(tab => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
@@ -735,16 +803,16 @@ export default function SettingsPage() {
           <div style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 12px',
             borderRadius:10, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(150,150,255,0.06)' }}>
             <div style={{ width:6, height:6, borderRadius:'50%', background: aiRunning?'#00E676':'#555588', boxShadow: aiRunning?'0 0 6px #00E676':'none', flexShrink:0 }} />
-            <span style={{ fontSize:10, color:'#8888BB' }}>{aiRunning?'AI 运行中':'AI 已暂停'}</span>
+            <span style={{ fontSize:10, color:'var(--color-text-secondary)' }}>{aiRunning?'AI 运行中':'AI 已暂停'}</span>
           </div>
         </div>
       </div>
 
       {/* ── Right content ── */}
-      <div style={{ flex:1, overflowY:'auto', overflowX:'hidden', background:'#080B24' }}>
+      <div style={{ flex:1, overflowY:'auto', overflowX:'hidden', background:'var(--color-bg-primary)' }}>
         <div style={{ padding:'24px 40px', borderBottom:'1px solid rgba(150,150,255,0.08)' }}>
-          <h1 style={{ fontSize:20, fontWeight:700, color:'#F0F0FF', margin:'0 0 4px' }}>{curTab?.label}</h1>
-          <p style={{ fontSize:11, color:'#555588', margin:0 }}>{curTab?.desc}</p>
+          <h1 style={{ fontSize:20, fontWeight:700, color:'var(--color-text-primary)', margin:'0 0 4px' }}>{curTab?.label}</h1>
+          <p style={{ fontSize:11, color:'var(--color-text-muted)', margin:0 }}>{curTab?.desc}</p>
         </div>
         <div style={{ padding:'28px 40px' }}>{renderContent()}</div>
       </div>

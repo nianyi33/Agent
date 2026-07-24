@@ -15,8 +15,7 @@ function MainLayout({ children }: MainLayoutProps) {
         <main
           className="relative flex-1 overflow-hidden"
           style={{
-            background:
-              'radial-gradient(ellipse at 50% 55%, #10163A 0%, #0A0E2A 40%, #080B24 70%, #050814 100%)',
+            background: 'var(--color-bg-primary)',
           }}
         >
           {children}

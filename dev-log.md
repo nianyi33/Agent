@@ -278,4 +278,77 @@ desktop/src-tauri/target/release/bundle/nsis/
 
 ---
 
-*最后更新: 2026-07-22*
+## v0.1.2 — 前端外观系统与全面安全加固 (2026-07-23)
+
+### 🎨 外观系统
+
+**三主题切换**
+- 设置页 → 通用 → 外观：三个卡片按钮本身就是颜色预览（暗紫/纯黑/亮白）
+- CSS `data-theme` 属性驱动。纯黑背景 `#000000`、亮白背景 `#F5F5F7`，暗紫不变
+- 强调色（`#635BFF` `#4A9CFF` `#00D4FF` `#C4B5FD`）在所有主题中保持不动
+- 粒子背景 canvas 不受 CSS filter 影响的特别处理（`#content-layer` → 现改为直接 `var(--color-bg-primary)`）
+
+**亮度滑块**
+- 纯 CSS `filter: brightness()` 作用在 `#root` 上，0.5x–1.5x 范围
+- localStorage 持久化 + 启动恢复
+
+**中央 AI Core 标志开关**
+- Toggle 控制 `data-core-visible` 属性 → CSS `display:none`
+
+**全局文字颜色适配（16 文件、85+ 处）**
+
+所有硬编码浅色文字改为 CSS 变量：
+
+| 原色 | → 变量 | 亮白效果 |
+|------|--------|---------|
+| `#F0F0FF` `#C0C0EE` `#E0E0FF` | `--color-text-primary` | `#1A1A2E` 深色 |
+| `#8888BB` `#A0A0CC` | `--color-text-secondary` | `#666680` 灰色 |
+| `#555588` `#9999BB` | `--color-text-muted` | `#9999AA` 浅灰 |
+
+**对话框主题适配**
+- ChatOverlay 面板背景 `rgba(10,15,45,0.85)` → `var(--color-bg-secondary)`
+- InputBar 输入框背景 `rgba(10,15,45,0.88)` → `var(--color-glass-bg)`
+- AI 气泡背景 `rgba(255,255,255,0.06)` → `var(--color-glass-bg)`
+
+**结构性背景 → CSS 变量**
+- WindowFrame 外层、MainLayout 渐变、SettingsPage 侧栏与内容面板、select 选项菜单——全部改为 `var()`
+
+### 🛡️ 全面安全审计修复（13 项）
+
+| 级别 | 修复 | 文件 |
+|------|------|------|
+| CRITICAL | 恶意 URL crash guard (`new URL`) | api.js |
+| CRITICAL | readJsonBody 1MB 硬上限 | api.js |
+| HIGH | server.on('error') EADDRINUSE handler | api.js |
+| HIGH | WSS upgrade + handleSceneConnection try/catch | api.js |
+| HIGH | SKILL.md XML injection fix (CDATA + esc) | registry.js |
+| HIGH | invalidateSharedBrowser 先 close() 再 null | browser.js |
+| HIGH | getSharedBrowser promise 去重 | browser.js |
+| HIGH | 优先 system Edge channel | browser.js |
+| HIGH | BAILONGMA_USER_DIR 降级路径 | lib.rs |
+| HIGH | delegate CLI 加 tool-policy 检查 | executor.js |
+| HIGH | tickInterval 20min→30s | config.js |
+| HIGH | watchdog 10min→3min | index.js |
+| MEDIUM | sandbox 符号链接绕过 (realpathSync) | sandbox.js |
+
+### 📡 数据后台刷新
+- 热点每 30 分后台自动刷新 (`getHotspots({ force: true })`)
+- 世界杯每 30 分后台自动刷新 + 旧数据迁移 (`getWorldcup({ force: true })`)
+
+### 🧹 API 代码简化
+- 删除旧版 `readJsonBody`（与新版重复声明致 SyntaxError）
+- 13 处手动 chunk 收集统一改用 `readJsonBody(req)` 调用
+
+### 📱 前端体验
+- `aiStatus` 默认 `offline`，AIStatusCard 红色"离线"指示
+- 思考超时 60s，超时只关动画不显示假错误
+- 欢迎弹窗检测 `/activation-status`，已激活不弹
+- 深度思考说明改为"适用全部模型"
+
+### 🏷️ 版本
+v0.1.0 → v0.1.1（4 处同步）
+
+### 📄 文档
+- 技术说明文档 (Markdown + Word)、使用说明书 (Word)
+
+*最后更新: 2026-07-23*

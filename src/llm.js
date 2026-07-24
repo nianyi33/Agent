@@ -14,8 +14,8 @@ import { streamWriteFileArgumentPreview, streamXmlFileWriteArgumentPreview } fro
 // 单轮流式调用的「空闲超时」：从开始到第一个 token、以及每两个 token 之间，
 // 若超过这个时长没有任何增量到达，判定为 provider 连接卡死（连接开着却不吐字节）。
 // 每收到一个 chunk 就重置，所以正常的长流式生成不受影响，只掐真正的停摆。
-// 必须显著小于 index.js 的 RUN_TURN_WATCHDOG_MS(180s)，且留够 streamOnceWithRetry 重试的余量
-// （最坏 3 次 × 该值 + 退避 仍要 < 180s）。
+// 必须显著小于 index.js 的 RUN_TURN_WATCHDOG_MS(300s)，且留够 streamOnceWithRetry 重试的余量
+// （最坏 3 次 × 该值 + 退避 仍要 < 300s）。
 const STREAM_IDLE_TIMEOUT_MS = 60_000
 
 // find_tool 命中后，把它返回的 loaded 工具 schema 原地追加进本轮 toolSchemas。
@@ -59,6 +59,8 @@ function getClient() {
 }
 
 function shouldEnableDeepSeekThinking(thinking) {
+  // User toggle controls this universally — xinyuntoken.com handles
+  // model-specific compatibility (e.g. GLM/Qwen/Kimi ignore the param).
   if (!thinking) return false
   if (config.model === 'deepseek-chat') return false
   return true
@@ -157,6 +159,7 @@ async function streamOnce({ messages, toolSchemas, temperature, topP, maxTokens,
   let inThink = false
   let thinkDone = false
   let streamStarted = false
+  let nonNativeThinkingPrefix = false   // true once we inject thinking prefix for non-DeepSeek models
   let usageTokens = 0
   let cacheHitTokens = 0
   let cacheMissTokens = 0
@@ -174,9 +177,19 @@ async function streamOnce({ messages, toolSchemas, temperature, topP, maxTokens,
     onStream?.({ event: 'chunk', text: cleanText })
   }
 
+  // layered timeouts: the SDK's built-in timeout covers TCP connect / TLS handshake
+  // (AbortSignal alone cannot abort a hung connect() on some platforms).
+  // the idle timer covers stream stalls (no chunk for STREAM_IDLE_TIMEOUT_MS).
+  // the watchdog (index.js) covers end-to-end turn time.
+  const HTTP_TIMEOUT_MS = STREAM_IDLE_TIMEOUT_MS
+
   try {
   // create() 也放进 try：连接建立阶段就卡死时，idle 触发 → 这里抛 AbortError → 下方 catch 转成可重试的瞬时错误。
-  const stream = await getClient().chat.completions.create(requestParams, { signal: reqController.signal })
+  const stream = await getClient().chat.completions.create(requestParams, {
+    signal: reqController.signal,
+    timeout: HTTP_TIMEOUT_MS,
+    maxRetries: 0,       // application handles retry (streamOnceWithRetry)
+  })
   for await (const chunk of stream) {
     armIdle()  // 收到增量，重置空闲计时（正常长流式生成因此不受影响）
     if (signal?.aborted) break
@@ -226,7 +239,12 @@ async function streamOnce({ messages, toolSchemas, temperature, topP, maxTokens,
       fullReasoningContent += reasoningText
       if (!thinkDone) {
         inThink = true
-        if (!streamStarted) { onStream?.({ event: 'start', mode: 'think' }); streamStarted = true }
+        if (!streamStarted) {
+          onStream?.({ event: 'start', mode: 'think' })
+          // Prefix so the frontend can detect and render the thinking block
+          onStream?.({ event: 'chunk', text: '思考：\n' })
+          streamStarted = true
+        }
         onStream?.({ event: 'chunk', text: reasoningText })
       }
       continue
@@ -236,11 +254,28 @@ async function streamOnce({ messages, toolSchemas, temperature, topP, maxTokens,
     const text = delta?.content
     if (!text) continue
 
+    // Non-DeepSeek models with thinking ON: the system prompt instructs
+    // the LLM to begin with "思考：". If the first text token already
+    // carries it, do nothing. Otherwise, inject it so the frontend can
+    // render the thinking block (ChatMessage detection requires it).
+    if (!nonNativeThinkingPrefix && !thinkDone && thinking) {
+      nonNativeThinkingPrefix = true
+      if (!text.startsWith('思考') && !text.startsWith('思')) {
+        if (!streamStarted) { onStream?.({ event: 'start', mode: 'think' }); streamStarted = true }
+        onStream?.({ event: 'chunk', text: '思考：\n' })
+      }
+    }
+
     // DeepSeek：思考流结束、进入正式回答时，先关闭 think 流
     if (inThink && !thinkDone) {
       inThink = false
       thinkDone = true
-      if (streamStarted) { onStream?.({ event: 'end' }); streamStarted = false }
+      if (streamStarted) {
+        // Insert separator so the frontend can split thinking from answer
+        onStream?.({ event: 'chunk', text: '\n\n' })
+        onStream?.({ event: 'end' })
+        streamStarted = false
+      }
     }
 
     fullContent += text

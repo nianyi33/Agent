@@ -15,6 +15,11 @@ function normalizeSlash(p) {
   return String(p || '').replace(/\\/g, '/')
 }
 
+// Escape XML attribute values: & < > "
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
 function splitFrontmatter(text) {
   const normalized = String(text || '').replace(/^\uFEFF/, '')
   if (!normalized.startsWith('---\n') && !normalized.startsWith('---\r\n')) {
@@ -262,8 +267,8 @@ To add one from inside TreeSloth AI Agent, create a folder under sandbox_root wi
       const resources = skill.resources.length
         ? `\nBundled resources in this skill folder: ${skill.resources.join(', ')}`
         : ''
-      return `<skill id="${skill.id}" name="${skill.name}" source="${skill.source}" path="${normalizeSlash(skill.dir)}" score="${skill.score}">
-${body}${resources}
+      return `<skill id="${esc(skill.id)}" name="${esc(skill.name)}" source="${esc(skill.source)}" path="${esc(normalizeSlash(skill.dir))}" score="${skill.score}">
+<![CDATA[${body}${resources}]]>
 </skill>`
     })
     parts.push(`<agent-skills>

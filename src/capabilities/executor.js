@@ -1472,6 +1472,11 @@ async function execDelegateToAgent({ agent_id, prompt: agentPrompt, context: age
     const safePrompt = fullPrompt.replace(/"/g, '\\"').replace(/\n/g, ' ')
     const cmdArgs = (agent.invokeArgs || []).map(a => a === '{prompt}' ? `"${safePrompt}"` : a).join(' ')
     const cmd = `${agent.invoke_cmd} ${cmdArgs}`
+    // Run the same dangerous-command check exec_command would go through
+    const execPolicy = evaluateToolPolicy('exec_command', { command: cmd, timeout: timeoutSec }, { autonomous: false })
+    if (!execPolicy.allowed) {
+      return toolJson({ ok: false, error: `代理调用被拦截: ${execPolicy.reason || '策略检查未通过'}` })
+    }
     const result = await execCommand({ command: cmd, timeout: timeoutSec, background: false }, {})
     // CLI 调用失败时注入文档引导
     try {

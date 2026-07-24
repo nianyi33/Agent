@@ -134,8 +134,8 @@ export default function AgentStudioPage() {
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24 }}>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <Sparkles size={22} style={{ color:'#8B5CFF' }} />
-          <h1 style={{ fontSize:22, fontWeight:700, color:'#F0F0FF', margin:0 }}>智能体编排</h1>
-          <span style={{ fontSize:10, color:'#555588', background:'rgba(255,255,255,0.04)', padding:'3px 10px', borderRadius:6 }}>
+          <h1 style={{ fontSize:22, fontWeight:700, color:'var(--color-text-primary)', margin:0 }}>智能体编排</h1>
+          <span style={{ fontSize:10, color:'var(--color-text-muted)', background:'rgba(255,255,255,0.04)', padding:'3px 10px', borderRadius:6 }}>
             {aiStatus === 'offline' ? '已暂停' : pipeline.length > 0 ? '编排中' : '待命中'}
           </span>
         </div>
@@ -166,7 +166,7 @@ export default function AgentStudioPage() {
               }}>
                 {done ? <CheckCircle2 size={14} style={{color:'#00E676'}}/> :
                  running ? <Loader2 size={14} className="animate-spin" style={{color:'#4A9CFF'}}/> :
-                 <Circle size={14} style={{color:'#555588'}}/>}
+                 <Circle size={14} style={{color:'var(--color-text-muted)'}}/>}
                 <span style={{ fontSize:12, fontWeight:600, color: done ? '#00E676' : running ? '#4A9CFF' : '#555588' }}>{step}</span>
               </div>
               {i < steps.length - 1 && (
@@ -180,7 +180,7 @@ export default function AgentStudioPage() {
       {/* Stat pills */}
       <div style={{ display:'flex', gap:10, marginBottom:20 }}>
         <MiniStat icon={<Cpu size={14} style={{color:'#8B5CFF'}}/>} label="核心" value="闪电树懒 AI" />
-        <MiniStat icon={<Brain size={14} style={{color:'#C0C0EE'}}/>} label="记忆" value={`${memoryCount} 条`} />
+        <MiniStat icon={<Brain size={14} style={{color:'var(--color-text-primary)'}}/>} label="记忆" value={`${memoryCount} 条`} />
         <MiniStat icon={<Wrench size={14} style={{color:'#4A9CFF'}}/>} label="工具" value={`${toolCount} 个`} />
         <MiniStat icon={<Activity size={14} style={{color:'#00E676'}}/>} label="活动" value={`${pipeline.length} 步`} />
       </div>
@@ -192,22 +192,22 @@ export default function AgentStudioPage() {
           background:'rgba(74,156,255,0.08)', border:'1px solid rgba(74,156,255,0.2)',
         }}>
           <Loader2 size={14} className="animate-spin" style={{color:'#4A9CFF'}} />
-          <span style={{ fontSize:13, color:'#C0C0EE', fontWeight:500 }}>{currentTask}</span>
+          <span style={{ fontSize:13, color:'var(--color-text-primary)', fontWeight:500 }}>{currentTask}</span>
         </div>
       )}
 
       <div style={{ display:'flex', gap:20, flex:1, minHeight:0 }}>
         {/* Pipeline view */}
         <div style={{ flex:2, minWidth:0 }}>
-          <h2 style={{ fontSize:13, fontWeight:600, color:'#8888BB', marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
+          <h2 style={{ fontSize:13, fontWeight:600, color:'var(--color-text-secondary)', marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
             <ListTodo size={13} style={{color:'#8B5CFF'}}/> 任务编排流水线
           </h2>
           {pipeline.length === 0 ? (
             <GlassPanel variant="light" padding>
               <div style={{ textAlign:'center', padding:32 }}>
-                <Activity size={32} style={{ color:'#555588', marginBottom:12, opacity:0.4 }} />
-                <div style={{ fontSize:14, color:'#8888BB', marginBottom:4 }}>等待用户任务</div>
-                <div style={{ fontSize:11, color:'#555588' }}>发送消息后，这里会展示 AI 如何分析→分解→调度工具→生成回复</div>
+                <Activity size={32} style={{ color:'var(--color-text-muted)', marginBottom:12, opacity:0.4 }} />
+                <div style={{ fontSize:14, color:'var(--color-text-secondary)', marginBottom:4 }}>等待用户任务</div>
+                <div style={{ fontSize:11, color:'var(--color-text-muted)' }}>发送消息后，这里会展示 AI 如何分析→分解→调度工具→生成回复</div>
               </div>
             </GlassPanel>
           ) : (
@@ -230,11 +230,11 @@ export default function AgentStudioPage() {
                        <Circle size={11}/>}
                     </span>
                     <span style={{
-                      fontSize:10, fontWeight:600, color:'#555588',
+                      fontSize:10, fontWeight:600, color:'var(--color-text-muted)',
                       background:'rgba(255,255,255,0.04)', padding:'1px 5px', borderRadius:4, flexShrink:0,
                     }}>{p.type === 'think' ? '思考' : p.type === 'reply' ? '回复' : p.name}</span>
                     <span style={{ color: p.status === 'done' ? '#C0C0EE' : '#8888BB', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.detail}</span>
-                    {p.time && <span style={{ color:'#555588', fontSize:10, flexShrink:0, display:'flex', alignItems:'center', gap:3 }}><Clock size={10}/>{p.time}</span>}
+                    {p.time && <span style={{ color:'var(--color-text-muted)', fontSize:10, flexShrink:0, display:'flex', alignItems:'center', gap:3 }}><Clock size={10}/>{p.time}</span>}
                   </div>
                 );
               })}
@@ -244,7 +244,7 @@ export default function AgentStudioPage() {
 
         {/* Right: Agent cards + lessons */}
         <div style={{ flex:1, minWidth:240, display:'flex', flexDirection:'column', gap:10 }}>
-          <h2 style={{ fontSize:13, fontWeight:600, color:'#8888BB', display:'flex', alignItems:'center', gap:6 }}>
+          <h2 style={{ fontSize:13, fontWeight:600, color:'var(--color-text-secondary)', display:'flex', alignItems:'center', gap:6 }}>
             <Cpu size={13} style={{color:'#8B5CFF'}}/> 工作 Agent
           </h2>
           {[
@@ -260,8 +260,8 @@ export default function AgentStudioPage() {
                     <Icon size={14} style={{ color:a.color }} />
                   </div>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:11, fontWeight:600, color:'#F0F0FF' }}>{a.name}</div>
-                    <div style={{ fontSize:9, color:'#8888BB', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.desc}</div>
+                    <div style={{ fontSize:11, fontWeight:600, color:'var(--color-text-primary)' }}>{a.name}</div>
+                    <div style={{ fontSize:9, color:'var(--color-text-secondary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.desc}</div>
                   </div>
                   <div style={{ width:5, height:5, borderRadius:'50%', background: a.status ? '#00E676' : '#555588', boxShadow: a.status ? '0 0 5px #00E676' : 'none' }} />
                 </div>
@@ -272,12 +272,12 @@ export default function AgentStudioPage() {
           {/* Lessons */}
           {lessons.length > 0 && (
             <>
-              <h2 style={{ fontSize:13, fontWeight:600, color:'#8888BB', display:'flex', alignItems:'center', gap:6, marginTop:6 }}>
+              <h2 style={{ fontSize:13, fontWeight:600, color:'var(--color-text-secondary)', display:'flex', alignItems:'center', gap:6, marginTop:6 }}>
                 <Brain size={13} style={{color:'#8B5CFF'}}/> 自进化
               </h2>
               {lessons.map((l,i) => (
-                <div key={i} style={{ fontSize:9, color:'#8888BB', padding:'6px 8px', borderRadius:6, border:'1px solid rgba(150,150,255,0.06)', lineHeight:1.4 }}>
-                  <div style={{ fontWeight:600, fontSize:10, color:'#C0C0EE', marginBottom:2 }}>{l.title}</div>
+                <div key={i} style={{ fontSize:9, color:'var(--color-text-secondary)', padding:'6px 8px', borderRadius:6, border:'1px solid rgba(150,150,255,0.06)', lineHeight:1.4 }}>
+                  <div style={{ fontWeight:600, fontSize:10, color:'var(--color-text-primary)', marginBottom:2 }}>{l.title}</div>
                   {l.content}
                 </div>
               ))}
@@ -296,8 +296,8 @@ function MiniStat({ icon, label, value }: { icon:React.ReactNode; label:string; 
       backdropFilter:'blur(14px)', WebkitBackdropFilter:'blur(14px)' }}>
       <div style={{ width:28, height:28, borderRadius:8, background:'rgba(99,91,255,0.08)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>{icon}</div>
       <div>
-        <div style={{ fontSize:9, color:'#555588' }}>{label}</div>
-        <div style={{ fontSize:12, fontWeight:700, color:'#F0F0FF' }}>{value}</div>
+        <div style={{ fontSize:9, color:'var(--color-text-muted)' }}>{label}</div>
+        <div style={{ fontSize:12, fontWeight:700, color:'var(--color-text-primary)' }}>{value}</div>
       </div>
     </div>
   );

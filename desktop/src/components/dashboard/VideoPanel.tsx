@@ -55,7 +55,7 @@ export default function VideoPanel() {
         padding: '10px 16px', borderBottom: '1px solid rgba(150,150,255,0.15)',
         flexShrink: 0,
       }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: '#C0C0EE', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
           🎬 {state.title || '视频播放'}
         </span>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -80,6 +80,6 @@ export default function VideoPanel() {
 const btnStyle: React.CSSProperties = {
   width: 28, height: 28, borderRadius: 8,
   background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(150,150,255,0.15)',
-  color: '#8888BB', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
   transition: 'all 0.15s',
 };

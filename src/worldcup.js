@@ -371,17 +371,25 @@ async function refreshScores(now = Date.now()) {
 function loadStoreOnce() {
   if (storeLoaded) return
   storeLoaded = true
-  try {
-    const rows = JSON.parse(fs.readFileSync(STORE_FILE, 'utf-8'))
-    if (Array.isArray(rows)) {
-      for (const row of rows) {
-        if (!row?.matchId) continue
-        // 清洗历史污染：过滤规则升级后，老存储里的非比赛条目（如开幕式）在加载时剔除
-        if (isNonMatchEntry(row.league, row.home, row.away)) continue
-        matchStore.set(row.matchId, row)
+  // Also try old project-root-relative path (before BAILONGMA_USER_DIR migration)
+  const oldDataDir = path.join(paths.resourcesDir, 'data')
+  const oldStore = path.join(oldDataDir, 'worldcup-matches.json')
+  const candidates = [STORE_FILE, oldStore]
+  for (const candidate of candidates) {
+    try {
+      const rows = JSON.parse(fs.readFileSync(candidate, 'utf-8'))
+      if (Array.isArray(rows)) {
+        for (const row of rows) {
+          if (!row?.matchId) continue
+          if (isNonMatchEntry(row.league, row.home, row.away)) continue
+          matchStore.set(row.matchId, row)
+        }
+        // Migrate old data to new path if needed
+        if (candidate === oldStore && matchStore.size > 0) saveStore()
+        return
       }
-    }
-  } catch {}
+    } catch {}
+  }
 }
 
 function saveStore() {
@@ -514,6 +522,8 @@ export async function getWorldcup({ force = false, viewed = false } = {}) {
   if (viewed) noteWorldcupPanelViewed()
   if (!force && isCacheFresh()) return cache
   if (inFlight) return inFlight
+  // Force-refresh: also re-read the persistent store (may have been migrated)
+  if (force) { storeLoaded = false; matchStore.clear() }
 
   inFlight = fetchWorldcup()
     .then((result) => {

@@ -100,9 +100,13 @@ pub fn run() {
       // Point the backend's writable user-data dir to %APPDATA%\闪电树懒 (always writable).
       // Without this, paths.js falls back to REPO_ROOT = the read-only resource dir, and
       // SQLite/mkdir/config writes fail → backend crashes → activation fails.
-      if let Ok(data_dir) = app.path().app_data_dir() {
-        cmd.env("BAILONGMA_USER_DIR", data_dir.to_string_lossy().to_string());
-      }
+      let data_dir = app.path().app_data_dir().unwrap_or_else(|_| {
+        let fallback = std::env::var("APPDATA")
+          .or_else(|_| std::env::var("HOME"))
+          .unwrap_or_default();
+        std::path::PathBuf::from(fallback).join("闪电树懒")
+      });
+      cmd.env("BAILONGMA_USER_DIR", data_dir.to_string_lossy().to_string());
 
       cmd.stdout(std::process::Stdio::null())
          .stderr(std::process::Stdio::null());

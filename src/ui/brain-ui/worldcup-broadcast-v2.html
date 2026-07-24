@@ -328,7 +328,7 @@
 
 <div id="stage">
 
-  <div class="conn-banner" id="conn-banner">未连接后端数据（localhost:3721 / 3722 均不可达）· 当前全部为演示数据</div>
+  <div class="conn-banner" id="conn-banner" style="display:none">暂无世界杯赛程数据 · 当前全部为演示数据</div>
 
   <!-- ── 顶栏 ── -->
   <div class="top boot-item" style="--boot-delay:40ms;--exit-delay:300ms">
@@ -484,13 +484,18 @@ const $ = (id) => document.getElementById(id);
 let MODE = 'demo';   // 'real' | 'demo'
 let VM = null;       // 真数据视图模型
 
+let REACHED_BACKEND = false;  // true once we confirm backend is up
+
 async function fetchReal() {
   for (const base of API_BASES) {
     try {
       const res = await fetch(`${base}/worldcup?viewed=1`, { signal: AbortSignal.timeout(7000) });
       if (!res.ok) continue;
       const data = await res.json();
-      if (data?.ok && Array.isArray(data.matches) && data.matches.length) return data;
+      REACHED_BACKEND = true;
+      // If backend responded (ok:true OR ok:false with matches array), use the data.
+      // ok:false just means no World Cup matches right now (off-season) — not a connection error.
+      if (data && Array.isArray(data.matches)) return data;
     } catch { /* 换下一个源 */ }
   }
   return null;
@@ -813,7 +818,6 @@ function renderReal(vm) {
 
 function renderDemo() {
   MODE = 'demo'; VM = null;
-  $('conn-banner').style.display = 'block';
 
   renderHero(DEMO.focus);
   renderDemoStats();
@@ -838,8 +842,15 @@ function renderDemo() {
 
 async function load() {
   const data = await fetchReal();
-  if (data) renderReal(buildVM(data));
-  else renderDemo();
+  if (data && Array.isArray(data.matches) && data.matches.length) {
+    renderReal(buildVM(data));
+  } else {
+    // Only show the banner if the backend is truly unreachable
+    if (!REACHED_BACKEND) {
+      $('conn-banner').style.display = 'block';
+    }
+    renderDemo();
+  }
 }
 
 // ═══ 时钟 / 自动刷新 / 缩放 ═══════════════════════════════════════════════════

@@ -36,7 +36,7 @@ export default function ChatOverlay({
               height: CHAT_MAX_HEIGHT,
               display: 'flex',
               flexDirection: 'column',
-              background: 'rgba(10, 15, 45, 0.85)',
+              background: 'var(--color-bg-secondary)',
               backdropFilter: 'blur(40px)',
               WebkitBackdropFilter: 'blur(40px)',
               border: '1px solid rgba(150, 150, 255, 0.25)',
@@ -60,7 +60,7 @@ export default function ChatOverlay({
                 style={{
                   fontSize: 13,
                   fontWeight: 600,
-                  color: '#F0F0FF',
+                  color: 'var(--color-text-primary)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
@@ -89,7 +89,7 @@ export default function ChatOverlay({
                   borderRadius: 10,
                   background: 'transparent',
                   border: 'none',
-                  color: '#8888BB',
+                  color: 'var(--color-text-secondary)',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -124,7 +124,7 @@ export default function ChatOverlay({
                 justifyContent: 'center',
               }}
             >
-              <span style={{ fontSize: 12, color: '#555588' }}>
+              <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
                 在下方输入栏中输入消息…
               </span>
             </div>

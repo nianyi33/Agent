@@ -60,11 +60,11 @@ function Header() {
           }}
         />
         <div className="flex flex-col leading-none" style={{ marginLeft: '16px' }}>
-          <span className="text-[14px] font-semibold tracking-wide" style={{ color: '#F0F0FF' }}>
+          <span className="text-[14px] font-semibold tracking-wide" style={{ color: 'var(--color-text-primary)' }}>
             闪电树懒
           </span>
-          <span className="text-[10px] tracking-[0.08em]" style={{ color: '#555588' }}>
-            v0.1.0
+          <span className="text-[10px] tracking-[0.08em]" style={{ color: 'var(--color-text-muted)' }}>
+            v0.1.1
           </span>
         </div>
       </div>
@@ -77,7 +77,7 @@ function Header() {
             type="button"
             onClick={() => setOpen(o => !o)}
             className="relative flex h-9 w-9 items-center justify-center rounded-[12px] transition-all hover:text-[var(--color-text-primary)] hover:bg-[rgba(255,255,255,0.06)]"
-            style={{ color: '#8888BB' }}
+            style={{ color: 'var(--color-text-secondary)' }}
             title="通知"
           >
             <Bell className="h-4 w-4" />
@@ -104,14 +104,14 @@ function Header() {
               zIndex: 50,
             }}>
               <div style={{
-                fontSize: 11, fontWeight: 600, color: '#8888BB',
+                fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)',
                 letterSpacing: '0.06em', textTransform: 'uppercase',
                 padding: '8px 12px 6px',
               }}>
                 通知 {unread > 0 && <span style={{ color: '#FF5F57' }}>({unread})</span>}
               </div>
               {notifs.length === 0 ? (
-                <div style={{ padding: '20px 12px', textAlign: 'center', fontSize: 12, color: '#555588' }}>
+                <div style={{ padding: '20px 12px', textAlign: 'center', fontSize: 12, color: 'var(--color-text-muted)' }}>
                   暂无通知
                 </div>
               ) : (
@@ -130,7 +130,7 @@ function Header() {
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = n.read ? 'transparent' : 'rgba(99,91,255,0.06)'; }}
                   >
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#F0F0FF', marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 6 }}>
                       {!n.read && <span style={{ display:'inline-block', width:6, height:6, borderRadius:'50%', background:'#8B5CFF', marginRight:6 }} />}
                       {n.title}
                     </div>
@@ -153,7 +153,7 @@ function Header() {
           type="button"
           onClick={() => setActiveRoute('settings')}
           className="flex h-9 w-9 items-center justify-center rounded-[12px] text-[var(--color-text-secondary)] transition-all hover:text-[var(--color-text-primary)] hover:bg-[rgba(255,255,255,0.06)]"
-          style={{ color: '#8888BB' }}
+          style={{ color: 'var(--color-text-secondary)' }}
           title="设置"
         >
           <Settings className="h-4 w-4" />

@@ -75,7 +75,7 @@ export default function InputBar({ onFocus, onBlur, onSend }: InputBarProps) {
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '13px 20px', borderRadius: 20,
-        background: 'rgba(10, 15, 45, 0.88)',
+        background: 'var(--color-glass-bg)',
         backdropFilter: 'blur(40px)', WebkitBackdropFilter: 'blur(40px)',
         border: listening
           ? '1px solid rgba(0,230,118,0.5)'
@@ -113,7 +113,7 @@ export default function InputBar({ onFocus, onBlur, onSend }: InputBarProps) {
           style={{
             flex: 1, background: 'transparent', border: 'none', outline: 'none',
             fontSize: 14, fontWeight: 500,
-            color: listening ? '#00E676' : '#F0F0FF',
+            color: listening ? '#00E676' : 'var(--color-text-primary)',
             fontFamily: 'inherit', letterSpacing: '0.02em', minWidth: 0,
           }}
         />

@@ -42,6 +42,8 @@ import { collectInstalledSoftware, getInstalledSoftwareBlock } from './installed
 import { collectLocalResources } from './local-resources-scanner.js'
 import { collectGeoWeather, getGeoWeatherBlock } from './geo-weather.js'
 import { collectTrending } from './trending.js'
+import { getHotspots } from './hotspots.js'
+import { getWorldcup } from './worldcup.js'
 import { collectAgents, buildAgentContextBlock, buildDelegationAskDirections } from './agents/registry.js'
 import { refreshSkills, selectSkillsForMessage, formatSkillsForContext } from './skills/registry.js'
 import { tryAutoConfigureKey } from './key-auto-config.js'
@@ -158,7 +160,7 @@ let currentExecution = null
 // 没传 AbortSignal 也没自己超时）。触发后强 abort，把 processing 清掉，主循环能继续
 // 处理后续消息。不修复挂着的 promise（它会留在内存里直到 GC 或自行结束），但保证 UI
 // "思考中"永远在有限时间内解锁、用户的下一句话能被正常处理。
-const RUN_TURN_WATCHDOG_MS = 600_000
+const RUN_TURN_WATCHDOG_MS = 300_000
 
 const PRIORITY = {
   tick: 10,
@@ -1107,7 +1109,9 @@ async function runTurn(input, label, msg = null) {
             `- Proactive but not intrusive: don't repeat what was just said; don't bother late at night without reason (23:00–06:00: only message when there is clear value)\n` +
             `- Have substance: before sending, make sure there is something genuinely worth saying — not just "checking in"\n` +
             `- One thing per tick: pick the most valuable action, do it, and stop — don't pile multiple actions into one tick\n` +
-            `- If there is truly nothing worth doing, stay silent and call no tools`
+            `- If there is truly nothing worth doing, stay silent and call no tools` +
+            `\n` +
+            `**IMPORTANT — silence means silence.** If your decision is "nothing to say", send NOTHING — no send_message at all. Do NOT write "I'll stay quiet", "nothing from me", "沉默中", "我在等待", or any other announcement that you are being silent. Announcing silence IS noise and costs tokens every tick. A tick with no send_message is the intended result.`
           )
         }
       }
@@ -1875,6 +1879,27 @@ async function startConsciousnessLoop({ runImmediateTick = true } = {}) {
     setStickyEvent('startup_self_check_started', selfCheckPayload)
     emitEvent('startup_self_check_started', selfCheckPayload)
   }
+
+  // Background hotspot refresh: periodically fetch latest trending data
+  // so the user always sees fresh data when opening the hotspot panel,
+  // regardless of when they last clicked it.
+  setInterval(() => {
+    getHotspots({ force: true }).catch(() => {})
+  }, 30 * 60 * 1000)  // every 30 minutes
+
+  // Background worldcup refresh: keeps match data fresh during tournaments
+  setInterval(() => {
+    getWorldcup({ force: true }).catch(() => {})
+  }, 30 * 60 * 1000)  // every 30 minutes
+
+  // Pre-warm Playwright Chromium: download in background on first launch
+  // so browser_read is instant on subsequent calls (no Edge dependency).
+  ;(async () => {
+    try {
+      const { installPlaywrightBrowserInBackground } = await import('./capabilities/tools/web/browser.js')
+      installPlaywrightBrowserInBackground()
+    } catch {}
+  })()
 
   // Whether to fire an immediate L2 TICK is up to the caller; initial activation uses it to trigger self-check.
   if (runImmediateTick) {

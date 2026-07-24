@@ -1,5 +1,5 @@
-import { User, Volume2, Loader2 } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { User, Volume2, Loader2, Brain, ChevronDown, ChevronRight } from 'lucide-react';
+import { useState, useCallback, useMemo } from 'react';
 import Markdown from 'react-markdown';
 import type { Message } from '../../types';
 import { API_BASE } from '../../lib/constants';
@@ -72,6 +72,29 @@ export default function ChatMessage({ message, isStreaming = false }: ChatMessag
 
   const isUser = role === 'user';
 
+  // Extract thinking section: content starting with "思考：" signals a reasoning preamble
+  const { thinkingText, answerText } = useMemo(() => {
+    if (isUser || !content) return { thinkingText: '', answerText: content || '' };
+    const trimmed = content.trimStart();
+    const thinkIdx = trimmed.indexOf('思考：');
+    if (thinkIdx > 3) return { thinkingText: '', answerText: content }; // too far from start — not a thinking block
+    if (thinkIdx < 0) return { thinkingText: '', answerText: content }; // no "思考：" at all
+    // drop the leading whitespace + "思考：" marker
+    const rest = trimmed.slice(thinkIdx + 3);
+    // Split at first double-newline OR "---" after the 思考 marker
+    const sep = rest.match(/\n\n|---/);
+    if (!sep || typeof sep.index !== 'number') {
+      // No separator yet — treat everything as thinking (streaming in progress)
+      return { thinkingText: rest, answerText: '' };
+    }
+    return {
+      thinkingText: rest.slice(0, sep.index).trim(),
+      answerText: rest.slice(sep.index + (sep[0].length)).trim(),
+    };
+  }, [content, isUser]);
+
+  const [thinkingOpen, setThinkingOpen] = useState(false);
+
   return (
     <div
       style={{
@@ -117,12 +140,12 @@ export default function ChatMessage({ message, isStreaming = false }: ChatMessag
         <div
           style={{
             padding: '10px 15px', borderRadius: 18, fontSize: 13, lineHeight: 1.55,
-            color: '#E0E0FF',
+            color: 'var(--color-text-primary)',
             borderTopLeftRadius: isUser ? undefined : 4,
             borderTopRightRadius: isUser ? 4 : undefined,
             background: isUser
               ? 'linear-gradient(135deg, rgba(99, 91, 255, 0.35), rgba(74, 156, 255, 0.22))'
-              : 'rgba(255, 255, 255, 0.06)',
+              : 'var(--color-glass-bg)',
             border: isUser
               ? '1px solid rgba(150, 150, 255, 0.18)'
               : '1px solid rgba(150, 150, 255, 0.12)',
@@ -133,27 +156,124 @@ export default function ChatMessage({ message, isStreaming = false }: ChatMessag
           {isUser ? (
             content
           ) : (
-            <Markdown
-              components={{
-                p: ({ children }) => <p style={{ margin: 0 }}>{children}</p>,
-                code: ({ children, className }) => {
-                  const inline = !className;
-                  return inline
-                    ? <code style={{ background: 'rgba(150,150,255,0.15)', padding: '1px 5px', borderRadius: 4, fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>{children}</code>
-                    : <pre style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: 10, fontSize: 12, fontFamily: 'JetBrains Mono, monospace', overflowX: 'auto', margin: '8px 0' }}><code>{children}</code></pre>;
-                },
-                ul: ({ children }) => <ul style={{ paddingLeft: 18, margin: '4px 0' }}>{children}</ul>,
-                ol: ({ children }) => <ol style={{ paddingLeft: 18, margin: '4px 0' }}>{children}</ol>,
-                li: ({ children }) => <li style={{ marginBottom: 2 }}>{children}</li>,
-                strong: ({ children }) => <strong style={{ color: '#C4B5FD', fontWeight: 600 }}>{children}</strong>,
-                em: ({ children }) => <em style={{ color: '#A0A0CC' }}>{children}</em>,
-                a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#8B5CFF', textDecoration: 'underline' }}>{children}</a>,
-                blockquote: ({ children }) => <blockquote style={{ borderLeft: '2px solid rgba(150,150,255,0.3)', paddingLeft: 10, margin: '6px 0', color: '#A0A0CC' }}>{children}</blockquote>,
-                hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(150,150,255,0.15)', margin: '8px 0' }} />,
-              }}
-            >
-              {content}
-            </Markdown>
+            <>
+              {/* Streaming placeholder: show a thinking block IMMEDIATELY before the first token */}
+              {isStreaming && !thinkingText && !answerText ? (
+                <div style={{ marginBottom: 10 }}>
+                  <button
+                    onClick={() => setThinkingOpen(o => !o)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      background: 'rgba(139,92,255,0.08)',
+                      border: '1px solid rgba(139,92,255,0.2)',
+                      borderRadius: 10, padding: '6px 12px',
+                      cursor: 'pointer', width: '100%',
+                      color: '#A78BFA', fontSize: 12, fontWeight: 600,
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    <Loader2 size={12} className="animate-spin" />
+                    <span>正在思考...</span>
+                    <span style={{ marginLeft: 'auto' }}>
+                      {thinkingOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </span>
+                  </button>
+                </div>
+              ) : null}
+              {thinkingText ? (
+                <div style={{ marginBottom: answerText ? 10 : 0 }}>
+                  <button
+                    onClick={() => setThinkingOpen(o => !o)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      background: 'rgba(139,92,255,0.08)',
+                      border: '1px solid rgba(139,92,255,0.2)',
+                      borderRadius: 10, padding: '6px 12px',
+                      cursor: 'pointer', width: '100%',
+                      color: '#A78BFA', fontSize: 12, fontWeight: 600,
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    <Brain size={14} />
+                    <span>思考过程</span>
+                    {isStreaming && !answerText && <Loader2 size={12} className="animate-spin" style={{ marginLeft: 4 }} />}
+                    <span style={{ marginLeft: 'auto' }}>
+                      {thinkingOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </span>
+                  </button>
+                  {thinkingOpen && (
+                    <div style={{
+                      marginTop: 6, padding: '8px 12px',
+                      borderRadius: 10,
+                      background: 'rgba(139,92,255,0.04)',
+                      border: '1px solid rgba(139,92,255,0.08)',
+                      fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6,
+                    }}>
+                      <Markdown
+                        components={{
+                          p: ({ children }) => <p style={{ margin: 0 }}>{children}</p>,
+                          code: ({ children, className }) => {
+                            const inline = !className;
+                            return inline
+                              ? <code style={{ background: 'rgba(150,150,255,0.15)', padding: '1px 5px', borderRadius: 4, fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }}>{children}</code>
+                              : <pre style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: 8, fontSize: 11, fontFamily: 'JetBrains Mono, monospace', overflowX: 'auto', margin: '4px 0' }}><code>{children}</code></pre>;
+                          },
+                          strong: ({ children }) => <strong style={{ color: '#C4B5FD' }}>{children}</strong>,
+                          em: ({ children }) => <em style={{ color: 'var(--color-text-secondary)' }}>{children}</em>,
+                        }}
+                      >
+                        {thinkingText}
+                      </Markdown>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+              {answerText ? (
+                <Markdown
+                  components={{
+                    p: ({ children }) => <p style={{ margin: 0 }}>{children}</p>,
+                    code: ({ children, className }) => {
+                      const inline = !className;
+                      return inline
+                        ? <code style={{ background: 'rgba(150,150,255,0.15)', padding: '1px 5px', borderRadius: 4, fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>{children}</code>
+                        : <pre style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: 10, fontSize: 12, fontFamily: 'JetBrains Mono, monospace', overflowX: 'auto', margin: '8px 0' }}><code>{children}</code></pre>;
+                    },
+                    ul: ({ children }) => <ul style={{ paddingLeft: 18, margin: '4px 0' }}>{children}</ul>,
+                    ol: ({ children }) => <ol style={{ paddingLeft: 18, margin: '4px 0' }}>{children}</ol>,
+                    li: ({ children }) => <li style={{ marginBottom: 2 }}>{children}</li>,
+                    strong: ({ children }) => <strong style={{ color: '#C4B5FD' }}>{children}</strong>,
+                    em: ({ children }) => <em style={{ color: 'var(--color-text-secondary)' }}>{children}</em>,
+                    a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#8B5CFF', textDecoration: 'underline' }}>{children}</a>,
+                    blockquote: ({ children }) => <blockquote style={{ borderLeft: '2px solid rgba(150,150,255,0.3)', paddingLeft: 10, margin: '6px 0', color: 'var(--color-text-secondary)' }}>{children}</blockquote>,
+                    hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(150,150,255,0.15)', margin: '8px 0' }} />,
+                  }}
+                >
+                  {answerText}
+                </Markdown>
+              ) : thinkingText ? null : (
+                <Markdown
+                  components={{
+                    p: ({ children }) => <p style={{ margin: 0 }}>{children}</p>,
+                    code: ({ children, className }) => {
+                      const inline = !className;
+                      return inline
+                        ? <code style={{ background: 'rgba(150,150,255,0.15)', padding: '1px 5px', borderRadius: 4, fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>{children}</code>
+                        : <pre style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: 10, fontSize: 12, fontFamily: 'JetBrains Mono, monospace', overflowX: 'auto', margin: '8px 0' }}><code>{children}</code></pre>;
+                    },
+                    ul: ({ children }) => <ul style={{ paddingLeft: 18, margin: '4px 0' }}>{children}</ul>,
+                    ol: ({ children }) => <ol style={{ paddingLeft: 18, margin: '4px 0' }}>{children}</ol>,
+                    li: ({ children }) => <li style={{ marginBottom: 2 }}>{children}</li>,
+                    strong: ({ children }) => <strong style={{ color: '#C4B5FD' }}>{children}</strong>,
+                    em: ({ children }) => <em style={{ color: 'var(--color-text-secondary)' }}>{children}</em>,
+                    a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#8B5CFF', textDecoration: 'underline' }}>{children}</a>,
+                    blockquote: ({ children }) => <blockquote style={{ borderLeft: '2px solid rgba(150,150,255,0.3)', paddingLeft: 10, margin: '6px 0', color: 'var(--color-text-secondary)' }}>{children}</blockquote>,
+                    hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(150,150,255,0.15)', margin: '8px 0' }} />,
+                  }}
+                >
+                  {content}
+                </Markdown>
+              )}
+            </>
           )}
           {isStreaming && (
             <span style={{ display:'inline-block', width:7, height:13, background:'#C4B5FD', marginLeft:2, verticalAlign:'text-bottom', animation:'blink 0.8s steps(1) infinite' }} />

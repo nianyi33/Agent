@@ -78,9 +78,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   setCurrentStreamContent: (v) => set({ currentStreamContent: v }),
 
-  appendStreamChunk: (chunk, mode) => {
-    // Ignore reasoning/think tokens — they are internal model reasoning, not user-facing chat
-    if (mode === 'think') return;
+  appendStreamChunk: (chunk) => {
     set((s) => ({ currentStreamContent: s.currentStreamContent + chunk }));
   },
 

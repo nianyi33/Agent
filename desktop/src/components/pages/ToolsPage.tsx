@@ -76,7 +76,7 @@ const inputBase: React.CSSProperties = {
   borderRadius: 12,
   padding: '9px 14px',
   fontSize: 13,
-  color: '#F0F0FF',
+  color: 'var(--color-text-primary)',
   outline: 'none',
   width: '100%',
 };
@@ -127,14 +127,14 @@ export default function ToolsPage() {
             <Wrench size={20} style={{ color: '#A78BFA' }} />
           </div>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: '#F0F0FF', margin: 0, lineHeight: 1.2 }}>工具库</h1>
-            <p style={{ fontSize: 12, color: '#8888BB', margin: '2px 0 0' }}>{tools.length} 个工具 · {categories.length} 个分类</p>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--color-text-primary)', margin: 0, lineHeight: 1.2 }}>工具库</h1>
+            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', margin: '2px 0 0' }}>{tools.length} 个工具 · {categories.length} 个分类</p>
           </div>
         </div>
 
         {/* Search */}
         <div style={{ position: 'relative', width: 260 }}>
-          <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#555588', pointerEvents: 'none' }} />
+          <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -163,7 +163,7 @@ export default function ToolsPage() {
                 }} />
                 {meta.label}
                 <span style={{
-                  fontSize: 10, fontWeight: 400, color: '#555588',
+                  fontSize: 10, fontWeight: 400, color: 'var(--color-text-muted)',
                   marginLeft: 'auto', letterSpacing: 0,
                 }}>
                   {catTools.length}
@@ -215,7 +215,7 @@ export default function ToolsPage() {
                           {t.name}
                         </div>
                         <div style={{
-                          fontSize: 11, color: '#8888BB', lineHeight: 1.4,
+                          fontSize: 11, color: 'var(--color-text-secondary)', lineHeight: 1.4,
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         }}>
                           {t.desc}
@@ -241,9 +241,9 @@ export default function ToolsPage() {
       {/* Empty state */}
       {grouped.length === 0 && (
         <div style={{ textAlign: 'center', padding: 60 }}>
-          <Search size={32} style={{ color: '#555588', marginBottom: 12 }} />
-          <div style={{ fontSize: 14, color: '#8888BB' }}>没有匹配 "{search}" 的工具</div>
-          <div style={{ fontSize: 11, color: '#555588', marginTop: 4 }}>尝试其他关键词</div>
+          <Search size={32} style={{ color: 'var(--color-text-muted)', marginBottom: 12 }} />
+          <div style={{ fontSize: 14, color: 'var(--color-text-secondary)' }}>没有匹配 "{search}" 的工具</div>
+          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>尝试其他关键词</div>
         </div>
       )}
     </div>

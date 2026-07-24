@@ -1,7 +1,8 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useChatStore } from '../../stores/chat-store';
 import ChatMessage from './ChatMessage';
 import type { Message } from '../../types';
+import { Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 
 export default function ChatMessageList() {
   const messages = useChatStore((s) => s.messages);
@@ -9,6 +10,7 @@ export default function ChatMessageList() {
   const currentStreamContent = useChatStore((s) => s.currentStreamContent);
   const isThinking = useChatStore((s) => s.isThinking);
   const setIsThinking = useChatStore((s) => s.setIsThinking);
+  const [thinkingExpanded, setThinkingExpanded] = useState(true);
 
   // Safety timeout: if thinking spinner runs > 60s with no stream event,
   // silently stop the spinner. Do NOT add an error message — the backend's
@@ -69,7 +71,7 @@ export default function ChatMessageList() {
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 13,
-            color: '#555588',
+            color: 'var(--color-text-muted)',
           }}
         >
           开始和闪电树懒对话吧
@@ -80,21 +82,40 @@ export default function ChatMessageList() {
         <ChatMessage key={msg.id} message={msg} />
       ))}
 
-      {/* Loading indicator — only when thinking, before first token arrives */}
+      {/* Thinking indicator: show a full thinking block (not dots) before the first token arrives */}
       {isThinking && !currentStreamContent && (
         <div style={{ display: 'flex', gap: 10, maxWidth: '85%', alignSelf: 'flex-start' }}>
           <div style={{ width: 30, height: 30, borderRadius: 10, flexShrink: 0, overflow: 'hidden' }}>
             <img src={localStorage.getItem('velora_ai_avatar') || '/sidebar-logo.png'}
               alt="AI" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
-          <div style={{
-            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(150,150,255,0.12)',
-            borderRadius: 18, borderTopLeftRadius: 4, padding: '10px 15px',
-            display: 'flex', alignItems: 'center', gap: 6,
-          }}>
-            <span style={{ width:6, height:6, borderRadius:'50%', background:'#8B5CFF', animation:'thinkBounce 1.4s ease-in-out infinite' }} />
-            <span style={{ width:6, height:6, borderRadius:'50%', background:'#8B5CFF', animation:'thinkBounce 1.4s ease-in-out 0.2s infinite' }} />
-            <span style={{ width:6, height:6, borderRadius:'50%', background:'#8B5CFF', animation:'thinkBounce 1.4s ease-in-out 0.4s infinite' }} />
+          <div style={{ display:'flex', flexDirection:'column', gap:2, minWidth:0, flex:1 }}>
+            <div style={{
+              padding: '10px 15px', borderRadius: 18, fontSize: 13, lineHeight: 1.55,
+              color: 'var(--color-text-primary)',
+              background: 'var(--color-glass-bg)',
+              border: '1px solid rgba(150,150,255,0.12)',
+              borderTopLeftRadius: 4,
+            }}>
+              <button
+                onClick={() => setThinkingExpanded(o => !o)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: 'rgba(139,92,255,0.08)',
+                  border: '1px solid rgba(139,92,255,0.2)',
+                  borderRadius: 10, padding: '6px 12px',
+                  cursor: 'pointer', width: '100%',
+                  color: '#A78BFA', fontSize: 12, fontWeight: 600,
+                  fontFamily: 'inherit',
+                }}
+              >
+                <Loader2 size={12} className="animate-spin" />
+                <span>正在思考...</span>
+                <span style={{ marginLeft: 'auto' }}>
+                  {thinkingExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       )}

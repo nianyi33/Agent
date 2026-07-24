@@ -13,7 +13,7 @@ function WindowFrame({ children }: WindowFrameProps) {
   const handleClose = () => appWindow.close();
 
   return (
-    <div className="flex h-full w-full flex-col rounded-2xl overflow-hidden bg-[#080B24]">
+    <div className="flex h-full w-full flex-col rounded-2xl overflow-hidden" style={{ background:'var(--color-bg-primary)' }}>
       {/* Title bar — draggable, Windows-style controls on right */}
       <div
         data-tauri-drag-region
