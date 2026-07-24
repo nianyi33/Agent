@@ -423,6 +423,39 @@ v0.1.0 → v0.1.1（4 处同步）
 | **TICK silence决策泄露到用户可见** | LLM把冷却计算当成思考输出 | prompt+TICK方向双重禁止 |
 | **LLM在silence决策上烧token** | 即使不发消息也输出思考文本 | `autonomousTicks=false` + silence规则最前面 |
 
+### 🔁 重复问题：CI 构建 `--ignore-scripts` 导致未出原生模块
+
+**问题（复发）**：Windows CI 构建产物安装后，用户启动时后端静默崩溃，原因是 `better-sqlite3` 在运行时找不到编译好的原生二进制（`.node` 文件）。
+
+**根因**：`build.yml:42` 中 `npm ci --omit=dev --ignore-scripts`——`--ignore-scripts` 跳过了 `better-sqlite3`（以及其他原生模块）的 `postinstall` 编译脚本。安装包里的 `node_modules` 不包含针对 Node ABI 的编译好的二进制，后端启动即崩、3721 永远不监听。
+
+**与过去的重复性**：macOS CI 之前也因为 `--ignore-scripts` 引发了完全相同的错误（v0.1.0），当时两个平台同时使用该标志。后来只从 macOS 移除了它，Windows 上仍然保留——原本以为 Windows 开发环境已预构建二进制文件，所以不会有影响。但一旦 CI 干净环境没有预构建的 `.node` 文件，此标志立即导致构建产物不完整。
+
+**修复**：从 Windows CI 命令中移除 `--ignore-scripts`，与 macOS CI 保持一致。根 `package.json` 中的 `postinstall`（`electron-builder install-app-deps`）早已被删除，因此此标志不再需要。
+
+**经验**：`--ignore-scripts` 与原生 Node 模块不兼容。不要将它用于包含 `better-sqlite3`、`sherpa-onnx`、`whisper-node-addon` 或任何需要 `node-gyp` / `prebuild-install` 的项目的后端依赖安装。如果一个平台无法正常构建并不得不借助此标志跳过脚本，说明有更深层的问题（例如跨平台构建逻辑未真正修复），应从根本上解决而非用标志临时规避。
+
+### 🔁 重复问题：CI Node 版本 ≠ 内置 node.exe 版本 → ABI 不匹配 → 后端起不来（v0.1.3 修复实录）
+
+**症状**：即使移除了 `--ignore-scripts`，用户下载 CI 构建的安装包后，`node.exe` 仍然没有进程、3721 永不监听。但本地构建（开发者自己的机器）完全正常。
+
+**根因**：
+- 内置 node.exe 版本：**v24.14.0**（ABI 137）
+- CI 配置的 Node 版本：**v22**（ABI 127）
+- `better-sqlite3`、`sherpa-onnx-node` 等原生模块通过 `postinstall` 脚本根据**当前运行时的 Node ABI** 编译二进制
+- CI 在 Node 22 上 `npm ci` → 编译出的 `.node` 文件是 ABI 127 版本
+- 内置 node.exe v24.14.0 加载 ABI 127 的 `.node` → `ERR_DLOPEN_FAILED` → 后端进程立即退出
+- 本地开发用的是系统 Node v24，与内置 node.exe 同 ABI → 测不出来
+
+**这是为什么之前"本地没问题，打包后不行"的真正原因——比 `--ignore-scripts` 更深一层。移除了 `--ignore-scripts` 恢复了编译，但编译出来的是错的 ABI。**
+
+**修复**：`build.yml` 中 `node-version: '22'` → `'24'`，两处（Windows + macOS job 的 `setup-node`）。
+
+**教训**：
+1. CI 的 Node 版本**必须**与打包在 `resources/node.exe` 中的版本完全一致。不是"差不多就行"。
+2. 写 CI 模板时不要从标准模板盲目抄 `node-version`，应该以 `resources/node.exe --version` 的输出为基准。
+3. 这条规则适用于所有含原生 `.node` 模块的 Tauri 项目——CI Node 版本 ≠ 内置 Node 版本必导致不可复现的生产崩溃。
+
 ### ✅ TypeScript零错误 + Node后端零SyntaxError
 
 ---
