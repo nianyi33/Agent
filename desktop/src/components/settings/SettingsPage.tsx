@@ -298,12 +298,20 @@ export default function SettingsPage() {
     localStorage.setItem('velora_llm_api_key', t);
     try {
       await postJsonRetry('/activate', { apiKey: t, model: model || 'deepseek-v4-pro', provider: 'xinyun', agentName: localAgentName || '闪电树懒' });
-      showToast('已激活'); fetchModels();
+      setFetchingModels(true); const data = await getJsonRetry('/settings') as any;
+      if (data?.llm?.models) setAvailableModels(data.llm.models.filter((m: ModelInfo) => !m.deprecated));
+      setFetchingModels(false);
+      showToast('已激活');
     } catch {
       try {
         const prep = await postJsonRetry('/activate/prepare', { apiKey: t, model: model || 'deepseek-v4-pro', provider: 'xinyun' }) as any;
-        if (prep?.token) { await postJsonRetry('/activate', { token: prep.token, apiKey: t, model: model || 'deepseek-v4-pro', provider: 'xinyun', agentName: localAgentName || '闪电树懒' }); showToast('已激活'); fetchModels(); }
-        else { showToast('激活失败', 'error'); }
+        if (prep?.token) {
+          await postJsonRetry('/activate', { token: prep.token, apiKey: t, model: model || 'deepseek-v4-pro', provider: 'xinyun', agentName: localAgentName || '闪电树懒' });
+          setFetchingModels(true); const data = await getJsonRetry('/settings') as any;
+          if (data?.llm?.models) setAvailableModels(data.llm.models.filter((m: ModelInfo) => !m.deprecated));
+          setFetchingModels(false);
+          showToast('已激活');
+        } else { showToast('激活失败', 'error'); }
       } catch {
         showToast('后端未启动，请稍后重试', 'error');
       }

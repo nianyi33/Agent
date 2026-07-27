@@ -70,7 +70,7 @@ export default function TaskPanel() {
             onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
             <Icon size={13} className={t.status === 'in-progress' ? 'animate-spin' : ''} style={{ color:c, flexShrink:0 }} />
-            <span style={{ fontSize:12, color: done ? '#555588' : '#C0C0EE', textDecoration: done ? 'line-through' : 'none', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            <span style={{ fontSize:12, color: done ? 'var(--color-text-muted)' : 'var(--color-text-primary)', textDecoration: done ? 'line-through' : 'none', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
               {t.title}
             </span>
           </div>
