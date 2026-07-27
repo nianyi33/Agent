@@ -104,6 +104,13 @@ jobs:
           chmod +x resources/node.exe
           echo "macOS node binary: $(ls -lh resources/node.exe)"
 
+      - name: Copy node to project root (tauri.conf.json resources mapping)
+        shell: bash
+        run: |
+          mkdir -p resources
+          cp desktop/resources/node.exe resources/node.exe
+          echo "root node: $(ls -lh resources/node.exe)"
+
       - name: Install frontend deps
         working-directory: desktop
         run: npm ci
