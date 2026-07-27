@@ -20,3 +20,7 @@ Thumbs.db
 !build/icon.ico
 !build/icon.png
 !build/icon.icns
+/dl-dmg/ 
+/dl-nsis/ 
+/ÉÁµçÊ÷ÀÁ-Windows-x64-NSIS/ 
+/release-tmp/

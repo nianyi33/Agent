@@ -42,8 +42,8 @@ export const useAppStore = create<AppStore>((set) => ({
   agentName: '闪电树懒',
   setAgentName: (name) => set({ agentName: name }),
 
-  modelName: '',
-  setModelName: (name) => set({ modelName: name }),
+  modelName: localStorage.getItem('velora_model') || '',
+  setModelName: (name) => { localStorage.setItem('velora_model', name); set({ modelName: name }); },
 
   wechatStatus: '',
   setWechatStatus: (status) => set({ wechatStatus: status }),

@@ -320,7 +320,7 @@ export default function SettingsPage() {
   const fetchModels = async () => { setFetchingModels(true); try { const data = await getJsonRetry('/settings') as any; if (data?.llm?.models) setAvailableModels(data.llm.models.filter((m: ModelInfo) => !m.deprecated)); } catch {} setFetchingModels(false); };
   const handleSelectModel = async (modelId: string) => {
     setModel(modelId);
-    try { await postJsonRetry('/settings/model', { provider: 'xinyun', model: modelId }); setModelName(modelId); localStorage.setItem('velora_model', modelId); showToast(`已切换到 ${modelId}`); }
+    try { await postJsonRetry('/settings/model', { provider: 'xinyun', model: modelId }); setModelName(modelId); showToast(`已切换到 ${modelId}`); }
     catch { showToast('切换失败', 'error'); }
   };
   const handleSaveVoice = async () => {
