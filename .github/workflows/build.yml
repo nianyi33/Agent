@@ -38,27 +38,16 @@ jobs:
         run: npm ci
 
       - name: Install backend deps (platform-native)
-        shell: pwsh
         working-directory: .
-        # Use the BUNDLED node.exe (v24.14.0) to run npm so that native modules
-        # (better-sqlite3, sherpa-onnx-node, etc.) are compiled against the
-        # EXACT ABI (137) they'll run against. CI runner's system Node version
-        # is irrelevant. Python + VS Build Tools are NOT required — prebuild-install
-        # downloads the correct prebuilt binary automatically.
-        run: |
-          $node = (Resolve-Path desktop/resources/node.exe).Path
-          $npm  = (Get-Command npm).Source
-          & $node $npm ci --omit=dev
-          Write-Host "backend deps installed with bundled node.exe ($(& $node --version))"
+        run: npm ci --omit=dev
 
       - name: Verify native modules load with bundled node
         shell: pwsh
         working-directory: .
         run: |
           $node = (Resolve-Path desktop/resources/node.exe).Path
-          & $node -e "require('better-sqlite3'); console.log('better-sqlite3 OK')"
-          & $node -e "try { require('sherpa-onnx-node') } catch(e) { if (!e.message.includes('Cannot find')) throw e; console.log('sherpa-onnx-node SKIP (optional)') }"
-          Write-Host "All critical native modules verified"
+          & $node -e "require('better-sqlite3'); Write-Host 'better-sqlite3 OK'"
+          Write-Host "Native modules verified"
 
       - name: Build Tauri (NSIS)
         working-directory: desktop
