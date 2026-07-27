@@ -33,6 +33,13 @@ jobs:
           }
           Write-Host "node.exe: $(if (Test-Path resources/node.exe) { 'present' } else { 'MISSING' })"
 
+      - name: Copy node.exe to project root (tauri.conf.json resources mapping)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path resources | Out-Null
+          Copy-Item desktop/resources/node.exe resources/node.exe
+          Write-Host "root node.exe: $(if (Test-Path resources/node.exe) { 'present' } else { 'MISSING' })"
+
       - name: Install frontend deps
         working-directory: desktop
         run: npm ci
