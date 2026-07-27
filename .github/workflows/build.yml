@@ -46,14 +46,12 @@ jobs:
 
       - name: Install backend deps (platform-native)
         working-directory: .
-        # sharp needs native compilation but CI has no C++ toolchain.
-        # better-sqlite3 v12.8.0 has Node 24 prebuilt binaries and installs
-        # cleanly even with --ignore-scripts; we rebuild it explicitly below.
-        run: npm ci --omit=dev --ignore-scripts
-
-      - name: Rebuild better-sqlite3 (Node 24 ABI)
-        working-directory: .
-        run: cd node_modules/better-sqlite3 && npx prebuild-install --runtime node --target 24.0.0 --arch x64 && cd ../..
+        # Install all deps without running native compilation scripts.
+        # Then restore prebuilt .node files (compiled locally and committed
+        # as native-prebuilds-win-x64.tar.gz — Node 24 ABI 137).
+        run: |
+          npm ci --omit=dev --ignore-scripts
+          tar -xzf native-prebuilds-win-x64.tar.gz
 
       - name: Verify native modules load with bundled node
         shell: pwsh
