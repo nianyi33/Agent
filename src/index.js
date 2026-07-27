@@ -1726,12 +1726,20 @@ async function onTick() {
     enqueueDueReminders()
     if (hasMessages()) {
       const msg = popMessage()
+      // If the system hasn't been activated yet and a social-channel message
+      // arrives (WeChat/Discord/Feishu), reply directly without calling the LLM.
+      if (config.needsActivation && msg.channel && msg.channel !== 'TUI' && msg.fromId) {
+        dispatchSocialMessage(msg.fromId, '你好！闪电树懒还未绑定 API Key，请先在电脑上的设置页中激活后再与我对话。').catch(() => {})
+        processing = false
+        return
+      }
       const lane = msg.queueName === 'background' ? 'BG' : 'L1'
       await runTurnWithWatchdog(msg.raw, `${lane} message from ${msg.fromId}`, msg)
-    } else if (!config.autonomousTicks) {
-      // Autonomous ticks disabled — skip L2 heartbeat entirely.
-      // User messages are still handled instantly via interrupt mechanism.
-      processing = false  // release lock now (scheduleNextTick will re-schedule)
+    } else if (!config.autonomousTicks || config.needsActivation) {
+      // Skip L2 heartbeat: either user turned off autonomous ticks, or the
+      // system hasn't been activated yet (no API key). In both cases there
+      // is nothing the agent can usefully do.
+      processing = false
       return
     } else {
       autoTick = true
@@ -1966,10 +1974,14 @@ async function main() {
 
   if (config.needsActivation) {
     console.log(`Please open http://127.0.0.1:${apiPort}/activation in your browser to activate before sending messages\n`)
-    return
+  } else {
+    console.log('Type a message and press Enter to send it to Jarvis\n')
   }
 
-  console.log('Type a message and press Enter to send it to Jarvis\n')
+  // Always start the main loop — even before activation — so that
+  // social channel messages (WeChat/Discord/Feishu) are not silently
+  // dropped. The onTick handler will route external senders a friendly
+  // "please activate" reply without calling the LLM.
   await startConsciousnessLoop()
 }
 
