@@ -39,6 +39,14 @@ jobs:
 
       - name: Install backend deps (platform-native)
         working-directory: .
+        # Force prebuild-install to download the correct Node 24 ABI binary,
+        # never fall back to source compilation (which would silently succeed
+        # but produce a broken .node file if build tools are missing).
+        env:
+          npm_config_target: "24.0.0"
+          npm_config_runtime: "node"
+          npm_config_arch: "x64"
+          npm_config_build_from_source: "false"
         run: npm ci --omit=dev
 
       - name: Verify native modules load with bundled node
