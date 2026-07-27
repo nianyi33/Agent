@@ -1960,7 +1960,14 @@ async function main() {
     onActivated: () => {
       console.log(`[LLM] Activated: ${config.provider} (${config.model})`)
       registerMinimaxIfAvailable()
-      startConsciousnessLoop({ runImmediateTick: true }).catch(err => console.error('[system] Main loop failed to start:', err))
+      // If the loop is already started (new behaviour since v0.1.3 — it starts
+      // during main() even before activation), just trigger an immediate tick to
+      // process any queued messages. Otherwise start it fresh.
+      if (loopStarted) {
+        triggerImmediateTick()
+      } else {
+        startConsciousnessLoop({ runImmediateTick: true }).catch(err => console.error('[system] Main loop failed to start:', err))
+      }
     },
   })
   reportStartupProgress('api', 'running', `等待 127.0.0.1:${apiPort} 就绪`, '正在等待本地 API 就绪')
