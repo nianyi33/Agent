@@ -460,4 +460,69 @@ v0.1.0 → v0.1.1（4 处同步）
 
 ---
 
-*最后更新: 2026-07-24*
+## v0.1.3-patch2 → v0.1.4 — 社交激活修复 + 原生模块 CI 终极方案 (2026-07-27)
+
+### 🔧 社交/微信消息在激活前无回复（根因修复）
+
+**根因**：`main()` 在 `config.needsActivation=true` 时直接 `return`，导致 `startConsciousnessLoop()` 从不被调用 → `interruptCallback` 从不注册 → WeChat/Discord/Feishu 的消息入队后永远不被 pop。
+
+**修复**：`main()` 不再因未激活而提前 return，始终调用 `startConsciousnessLoop()`。`onTick()` 在未激活且收到外部频道消息时通过 `dispatchSocialMessage` 直接回复"请先绑定 Key"，不调用 LLM。L2 自主 tick 在 `needsActivation=true` 时跳过。
+
+**激活回调和 loopStarted 冲突**：`main()` 先启动了循环（`loopStarted=true`），`onActivated` 回调中的 `startConsciousnessLoop({runImmediateTick:true})` 被拦。修复：`onActivated` 检测到 `loopStarted` 已为 true 时直接调用 `triggerImmediateTick()`。
+
+### 🔩 原生模块 CI 问题——第三次根因（终极方案）
+
+**问题演进**：
+1. **第一层**：CI `--ignore-scripts` 跳过所有原生模块编译（macOS 已修，Windows 遗漏）
+2. **第二层**：CI Node v22 vs 内置 node.exe v24 → ABI 不匹配（已修）
+3. **第三层**：`sharp` 无 Node 24 win-x64 预编译、必须从源码编译 → CI 无 C++ 工具链 → 失败
+
+**终极方案**：CI 不再尝试编译任何原生模块。开发者本机编译好的 `.node` 文件打包为 `native-prebuilds-win-x64.tar.gz`（5 个模块、1.7MB），CI 在 `npm ci --ignore-scripts` 后直接解压覆盖。开发者的编译环境就是用户的运行时环境。
+
+**涉及的 5 个原生模块**：
+
+| 模块 | 文件 | 大小 |
+|------|------|------|
+| better-sqlite3 | `better_sqlite3.node` | SQLite 数据库 |
+| @img/sharp-win32-x64 | `sharp-win32-x64.node` | 图片处理 |
+| @kutalia/whisper-node-addon | `whisper.node` | 本地 Whisper 语音识别 |
+| sherpa-onnx-win-x64 | `sherpa-onnx.node` | 本地 TTS 语音合成 |
+| onnxruntime-node | `onnxruntime_binding.node` | ONNX 推理引擎 |
+
+**原生模块更新流程**：开发者 `npm install` 后如有原生模块变化 → 运行更新脚本 → 提交新的 `.tar.gz`。
+
+### 🖥️ 前端修复
+
+- `modelName` 持久化到 localStorage → 重启不再显示"未配置"
+- SettingsPage `setModelName` 统一处理 localStorage 写入，移除冗余调用
+- 白色主题 TaskPanel/AIStatusCard 硬编码颜色 → CSS 变量
+- prompt.js 思考块禁止讨论内部规则/边界状态/自感知
+- 后端离线指示器：`aiStatus` 默认 `offline` + 红色提示
+
+### 🔨 CI 构建稳定化
+
+- `resources/node.exe` 被 `filter-branch *.exe` 误清 → 手动重新提交
+- CI 增加 `Copy node to project root` step（tauri.conf.json 的 `../../resources/node.exe` 映射需要项目根 `resources/`）
+- macOS CI 同样补上 root node 拷贝
+- CI 后端 dep 安装不再使用 `node.exe` 跑 npm（两个 Node 是同版本 24，直接 `npm ci` 即可）
+
+### 🗑️ Git 仓库清理
+
+- `filter-branch` 剥离了 3 个误提交的 100MB+ CI 产物（NSIS/DMG）
+- `.gitignore` 增加 `dl-dmg/`、`dl-nsis/`、`release-tmp/` 防止再次误提交
+
+### 📄 文档
+
+- 新手上手指南 (Word) 增加 xinyuntoken.com/products 下载链接
+- 开发日志 v0.1.3 增加 CI Node ABI 不匹配完整分析
+
+### ✅ 验证
+
+- TypeScript 零错误
+- Node 后端零 SyntaxError
+- CI Windows NSIS 构建通过（原生模块 verify: better-sqlite3 OK）
+- CI macOS DMG 构建通过
+
+---
+
+*最后更新: 2026-07-27*
