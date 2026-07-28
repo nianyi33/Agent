@@ -5,8 +5,20 @@ import { useAppStore } from '../stores/app-store';
 
 export function useSSE() {
   const busyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const thinkingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    const clearThinkingTimer = () => {
+      if (thinkingTimeoutRef.current) { clearTimeout(thinkingTimeoutRef.current); thinkingTimeoutRef.current = null; }
+    };
+    const startThinkingTimer = () => {
+      clearThinkingTimer();
+      thinkingTimeoutRef.current = setTimeout(() => {
+        const chat = useChatStore.getState();
+        if (chat.isThinking) { chat.setIsThinking(false); chat.setIsStreaming(false); }
+      }, 60000);
+    };
+
     const unsub = sseClient.on((event) => {
       const chat = useChatStore.getState();
       const app = useAppStore.getState();
@@ -15,13 +27,14 @@ export function useSSE() {
         case 'stream_start':
           chat.setIsStreaming(true);
           // Keep thinking visible when backend enters thinking mode
-          if (event.data?.mode !== 'think') chat.setIsThinking(false);
+          if (event.data?.mode !== 'think') { chat.setIsThinking(false); clearThinkingTimer(); }
           break;
 
         case 'stream_chunk':
-          // Mode 'think': reasoning content — keep thinking block alive.
+          // Mode 'think': reasoning content — keep thinking block alive, extend timer.
           // Mode 'text' (or no mode): reply content — switch from thinking to reply.
-          if (event.data?.mode !== 'think') chat.setIsThinking(false);
+          if (event.data?.mode !== 'think') { chat.setIsThinking(false); clearThinkingTimer(); }
+          else { startThinkingTimer(); }
           chat.appendStreamChunk(event.data?.text || '');
           break;
 
@@ -30,8 +43,11 @@ export function useSSE() {
           break;
 
         case 'message':
-          chat.finalizeStream();
+          // Only finalize if still streaming — stream_end may have already consumed it.
+          // If isStreaming=false, the content was already handled; just dedup below.
+          if (chat.isStreaming) chat.finalizeStream();
           chat.setIsThinking(false);
+          clearThinkingTimer();
           // localReply: stream chunks already wrote the reply via finalizeStream.
           // Only add a new message if the content differs from what was streamed.
           if (event.data?.content) {
@@ -53,6 +69,7 @@ export function useSSE() {
 
         case 'message_in':
           chat.setIsThinking(true);
+          startThinkingTimer();
           break;
 
         case 'message_received':
@@ -61,6 +78,7 @@ export function useSSE() {
           if (busyTimeoutRef.current) clearTimeout(busyTimeoutRef.current);
           busyTimeoutRef.current = setTimeout(() => app.setAIStatus('online'), 2000);
           chat.setIsThinking(true);
+          startThinkingTimer();
           break;
 
         case 'tool_executing':
@@ -101,6 +119,21 @@ export function useSSE() {
         case 'focus_frame':
           break;
 
+        // protocol_violation: backend had nothing to deliver after LLM turn → system error message
+        case 'protocol_violation':
+          chat.setIsThinking(false);
+          clearThinkingTimer();
+          chat.setCurrentStreamContent('');
+          chat.setIsStreaming(false);
+          chat.addMessage({
+            id: `err-proto-${Date.now()}`,
+            role: 'system',
+            content: 'AI 未能生成回复，请稍后重试',
+            timestamp: Date.now(),
+            status: 'error',
+          });
+          break;
+
         // Social status events — picked up by SettingsPage via app-store
         case 'social_status':
           if (event.data?.platform === 'wechat-clawbot') {
@@ -124,6 +157,8 @@ export function useSSE() {
         case 'error':
           console.error(`[SSE] ${event.data?.label || 'error'}:`, event.data?.error);
           chat.setIsThinking(false);
+          clearThinkingTimer();
+          chat.setCurrentStreamContent('');
           chat.setIsStreaming(false);
           chat.addMessage({
             id: `err-${Date.now()}`,
@@ -144,6 +179,7 @@ export function useSSE() {
       unsub();
       sseClient.disconnect();
       if (busyTimeoutRef.current) clearTimeout(busyTimeoutRef.current);
+      if (thinkingTimeoutRef.current) clearTimeout(thinkingTimeoutRef.current);
     };
   }, []);
 }

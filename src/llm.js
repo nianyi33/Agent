@@ -234,11 +234,18 @@ async function streamOnce({ messages, toolSchemas, temperature, topP, maxTokens,
     }
 
     // DeepSeek reasoner 思考内容（独立字段，不在 content 里）
-    // Buffer internally — emit the complete block once when thinking ends
+    // Stream progressively — like Claude, each reasoning chunk is emitted in real-time.
     const reasoningText = delta?.reasoning_content || delta?.reasoningContent || delta?.reasoning
     if (reasoningText) {
+      if (!inThink) {
+        // First reasoning chunk: open the think stream with the marker prefix
+        inThink = true
+        onStream?.({ event: 'start', mode: 'think' })
+        onStream?.({ event: 'chunk', text: '思考：\n' + reasoningText })
+      } else {
+        onStream?.({ event: 'chunk', text: reasoningText })
+      }
       fullReasoningContent += reasoningText
-      inThink = true
       continue
     }
 
@@ -246,15 +253,14 @@ async function streamOnce({ messages, toolSchemas, temperature, topP, maxTokens,
     const text = delta?.content
     if (!text) continue
 
-    // DeepSeek: thinking phase just ended — emit the complete buffered block
+    // DeepSeek: thinking phase just ended — close the think stream
+    // and insert a separator so the frontend can split think from answer.
     if (inThink && !thinkDone) {
       thinkDone = true
       inThink = false
-      if (fullReasoningContent) {
-        onStream?.({ event: 'start', mode: 'think' })
-        onStream?.({ event: 'chunk', text: '思考：\n' + fullReasoningContent + '\n\n' })
-        streamStarted = false  // reset so answer text triggers a fresh 'text' start
-      }
+      onStream?.({ event: 'chunk', text: '\n\n' })
+      onStream?.({ event: 'end' })
+      streamStarted = false  // reset so answer text triggers a fresh 'text' start
     }
 
     // Non-DeepSeek models with thinking ON: the system prompt instructs

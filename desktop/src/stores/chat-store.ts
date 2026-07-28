@@ -84,7 +84,24 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   finalizeStream: () => {
     const { currentStreamContent, messages } = get();
-    if (!currentStreamContent.trim()) return;
+    if (!currentStreamContent.trim()) {
+      // AI produced thinking content but no actual reply text → tell the user instead of silent emptiness
+      const errMsg: Message = {
+        id: `err-stream-${Date.now()}`,
+        role: 'system',
+        content: 'AI 未能生成回复，请稍后重试',
+        timestamp: Date.now(),
+        status: 'error',
+      };
+      set({
+        messages: [...messages, errMsg],
+        currentStreamContent: '',
+        isStreaming: false,
+        isThinking: false,
+        thinkingSteps: [],
+      });
+      return;
+    }
     const id = `stream-${Date.now()}`;
     const assistantMsg: Message = {
       id,

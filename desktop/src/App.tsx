@@ -156,6 +156,9 @@ function App() {
   // Only show the welcome guide if the backend reports NOT activated.
   useEffect(() => {
     if (showSplash) return;
+    // User already has an API key stored — skip welcome dialog even if backend not yet ready
+    const savedKey = localStorage.getItem('velora_llm_api_key');
+    if (savedKey) return;
     let cancelled = false;
     // Poll /activation-status for up to 15s (backend may still be starting)
     (async () => {

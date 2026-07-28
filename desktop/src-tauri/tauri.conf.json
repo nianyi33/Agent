@@ -47,6 +47,8 @@
       "../../src/": "backend/src/",
       "../../scripts/": "backend/scripts/",
       "../../skills/": "backend/skills/",
+      "../../sandbox/": "backend/sandbox/",
+      "../../music/": "backend/music/",
       "../../package.json": "backend/package.json",
       "../../node_modules/": "backend/node_modules/",
       "../../resources/node.exe": "backend/node.exe"

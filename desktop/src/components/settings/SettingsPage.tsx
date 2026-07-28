@@ -88,6 +88,8 @@ export default function SettingsPage() {
   // State (unchanged from original)
   const [localAgentName, setLocalAgentName] = useState(agentName);
   const [savingName, setSavingName] = useState(false);
+  const [activating, setActivating] = useState(false);
+  const [activationFeedback, setActivationFeedback] = useState<string | null>(null);
   const [model, setModel] = useState(() => localStorage.getItem('velora_model') || modelName || '');
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
   const [modelSearch, setModelSearch] = useState('');
@@ -259,16 +261,25 @@ export default function SettingsPage() {
   // (synchronous system/desktop/software scans before server.listen(3721)).
   // During that window fetch throws ECONNREFUSED (TypeError) — retry with backoff
   // instead of failing activation outright.
-  const postJsonRetry = useCallback(async (path: string, body: unknown, retries = 10) => {
+  const postJsonRetry = useCallback(async (path: string, body: unknown, opts?: { retries?: number; timeoutMs?: number }) => {
+    const retries = opts?.retries ?? 10;
+    const timeout = opts?.timeoutMs;
     let lastErr: unknown;
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        const res = await fetch(`${API_BASE}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const init: RequestInit = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+        if (timeout) init.signal = AbortSignal.timeout(timeout);
+        const res = await fetch(`${API_BASE}${path}`, init);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error((data as any)?.error || `HTTP ${res.status}`);
+        }
         return res.json();
       } catch (err) {
         lastErr = err;
-        // Network failure (backend not up yet) → wait and retry. Non-network errors (e.g. 400) rethrow immediately.
-        const isNetwork = err instanceof TypeError;
+        // Network failure (backend not up → ECONNREFUSED) → wait and retry.
+        // Non-network errors (HTTP 400/403) and timeout → throw immediately, no retry.
+        const isNetwork = err instanceof TypeError && !(err as Error)?.message?.includes('signal');
         if (!isNetwork || attempt === retries) throw err;
         await new Promise(r => setTimeout(r, 3000));
       }
@@ -282,6 +293,10 @@ export default function SettingsPage() {
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         const res = await fetch(`${API_BASE}${path}`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error((data as any)?.error || `HTTP ${res.status}`);
+        }
         return res.json();
       } catch (err) {
         lastErr = err;
@@ -296,25 +311,52 @@ export default function SettingsPage() {
   const handleSaveApiKey = async () => {
     const t = llmApiKey.trim(); if (!t) return;
     localStorage.setItem('velora_llm_api_key', t);
+    setActivating(true);
+    setActivationFeedback(null);
     try {
-      await postJsonRetry('/activate', { apiKey: t, model: model || 'deepseek-v4-pro', provider: 'xinyun', agentName: localAgentName || '闪电树懒' });
-      setFetchingModels(true); const data = await getJsonRetry('/settings') as any;
-      if (data?.llm?.models) setAvailableModels(data.llm.models.filter((m: ModelInfo) => !m.deprecated));
-      setFetchingModels(false);
-      showToast('已激活');
-    } catch {
-      try {
-        const prep = await postJsonRetry('/activate/prepare', { apiKey: t, model: model || 'deepseek-v4-pro', provider: 'xinyun' }) as any;
-        if (prep?.token) {
-          await postJsonRetry('/activate', { token: prep.token, apiKey: t, model: model || 'deepseek-v4-pro', provider: 'xinyun', agentName: localAgentName || '闪电树懒' });
+      const result = await postJsonRetry('/activate', { apiKey: t, model: model || 'deepseek-v4-pro', provider: 'xinyun', agentName: localAgentName || '闪电树懒' }, { timeoutMs: 45000 }) as { ok?: boolean; error?: string };
+      if (result?.ok) {
+        setActivationFeedback(null);
+        showToast('已激活');
+        // Load model list separately — don't let a /settings failure undo activation feedback
+        try {
           setFetchingModels(true); const data = await getJsonRetry('/settings') as any;
           if (data?.llm?.models) setAvailableModels(data.llm.models.filter((m: ModelInfo) => !m.deprecated));
-          setFetchingModels(false);
-          showToast('已激活');
-        } else { showToast('激活失败', 'error'); }
-      } catch {
-        showToast('后端未启动，请稍后重试', 'error');
+        } catch { /* model list is non-critical */ }
+        setFetchingModels(false);
+      } else {
+        setActivationFeedback(result?.error || '激活失败');
+        showToast(result?.error || '激活失败', 'error');
       }
+    } catch {
+      try {
+        const prep = await postJsonRetry('/activate/prepare', { apiKey: t, model: model || 'deepseek-v4-pro', provider: 'xinyun' }, { timeoutMs: 45000 }) as any;
+        if (prep?.ok && prep?.token) {
+          const result2 = await postJsonRetry('/activate', { token: prep.token, apiKey: t, model: model || 'deepseek-v4-pro', provider: 'xinyun', agentName: localAgentName || '闪电树懒' }, { timeoutMs: 45000 }) as { ok?: boolean; error?: string };
+          if (result2?.ok) {
+            setActivationFeedback(null);
+            showToast('已激活');
+            try {
+              setFetchingModels(true); const data = await getJsonRetry('/settings') as any;
+              if (data?.llm?.models) setAvailableModels(data.llm.models.filter((m: ModelInfo) => !m.deprecated));
+            } catch { /* non-critical */ }
+            setFetchingModels(false);
+          } else {
+            setActivationFeedback(result2?.error || '激活失败');
+            showToast(result2?.error || '激活失败', 'error');
+          }
+        } else {
+          const msg = prep?.error || '激活失败';
+          setActivationFeedback(msg);
+          showToast(msg, 'error');
+        }
+      } catch {
+        const msg = '后端未启动，请稍后重试';
+        setActivationFeedback(msg);
+        showToast(msg, 'error');
+      }
+    } finally {
+      setActivating(false);
     }
   };
   const fetchModels = async () => { setFetchingModels(true); try { const data = await getJsonRetry('/settings') as any; if (data?.llm?.models) setAvailableModels(data.llm.models.filter((m: ModelInfo) => !m.deprecated)); } catch {} setFetchingModels(false); };
@@ -340,7 +382,35 @@ export default function SettingsPage() {
     if (feishuAppSecret.trim()) body['FEISHU_APP_SECRET'] = feishuAppSecret.trim();
     try { await postJsonRetry('/settings/social', body); showToast('已保存'); } catch { showToast('失败', 'error'); }
   };
-  const handleWechatLogout = async () => { try { await postJsonRetry('/social/wechat-clawbot/logout', {}); setWechatLoggedIn(false); showToast('已登出'); } catch { showToast('登出失败，请稍后重试', 'error'); } };
+  const handleWechatLogout = async () => {
+    try {
+      const result = await postJsonRetry('/social/wechat-clawbot/logout', {}) as { ok?: boolean; error?: string };
+      if (result?.ok) {
+        setWechatLoggedIn(false);
+        setWechatQr(null);
+        showToast('已登出，正在生成新二维码…');
+        // 登出成功后自动连接，生成新二维码
+        setTimeout(async () => {
+          try {
+            await postJsonRetry('/settings/social', { _clawbot_connect: '1' });
+            setTimeout(async () => {
+              try {
+                const qrResp = await getJsonRetry('/social/wechat-clawbot/qr') as { qr_url?: string; status?: string };
+                if (qrResp?.qr_url && qrResp?.status === 'qr_ready') {
+                  const imgResp = await fetch(`${API_BASE}/social/wechat-clawbot/qr-image`);
+                  if (imgResp.ok) { setWechatQr(await imgResp.text()); setQrExpiresAt(Date.now() + 180000); }
+                }
+              } catch {}
+            }, 3000);
+          } catch { showToast('生成二维码失败', 'error'); }
+        }, 500);
+      } else {
+        showToast(result?.error || '登出失败', 'error');
+      }
+    } catch {
+      showToast('登出失败，请稍后重试', 'error');
+    }
+  };
   const handleConnectWechat = async () => { try { await postJsonRetry('/settings/social', { _clawbot_connect: '1' }); showToast('正在生成二维码…'); setTimeout(async () => { try { const qrResp = await getJsonRetry('/social/wechat-clawbot/qr'); const d = qrResp as { qr_url?: string; status?: string }; if (d?.qr_url && d?.status === 'qr_ready') { const imgResp = await fetch(`${API_BASE}/social/wechat-clawbot/qr-image`); if (imgResp.ok) { setWechatQr(await imgResp.text()); setQrExpiresAt(Date.now() + 180000); } } } catch {} }, 3000); } catch { showToast('启动失败', 'error'); } };
 
   // QR code countdown timer
@@ -385,15 +455,21 @@ export default function SettingsPage() {
                 <div style={C.label}>API Key</div>
                 <div style={{ display:'flex', gap:8 }}>
                   <div style={{ position:'relative', flex:1 }}>
-                    <input type={showLlmKey ? 'text' : 'password'} value={llmApiKey} onChange={e => setLlmApiKey(e.target.value)}
+                    <input type={showLlmKey ? 'text' : 'password'} value={llmApiKey} onChange={e => { setLlmApiKey(e.target.value); setActivationFeedback(null); }}
                       style={{ ...C.input, paddingRight:36 }} placeholder="sk-..." />
                     <button onClick={() => setShowLlmKey(p => !p)}
                       style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'var(--color-text-secondary)', cursor:'pointer', padding:4 }}>
                       {showLlmKey ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
                   </div>
-                  <GlowButton size="sm" onClick={handleSaveApiKey}>激活</GlowButton>
+                  <GlowButton size="sm" onClick={handleSaveApiKey} disabled={activating}
+                    style={activating ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}>
+                    {activating ? '激活中...' : '激活'}
+                  </GlowButton>
                 </div>
+                {activationFeedback && (
+                  <div style={{ fontSize: 11, color: activationFeedback.includes('失败') || activationFeedback.includes('未启动') ? '#FF5252' : '#00E676', marginTop: 6 }}>{activationFeedback}</div>
+                )}
               </div>
               <div style={{ display:'flex', gap:12, alignItems:'flex-end' }}>
                 <div style={{ flex:1 }}>

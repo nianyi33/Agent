@@ -525,4 +525,384 @@ v0.1.0 → v0.1.1（4 处同步）
 
 ---
 
-*最后更新: 2026-07-27*
+## 🛰️ Satellite Viz v1.0.0 — 纯前端 3D 实时卫星轨迹可视化 (2026-07-23 → 2026-07-27)
+
+### 🎯 项目概述
+
+独立于主项目的纯前端 3D 应用。从 CelesTrak 拉取 TLE 轨道根数（~12000 颗在轨卫星），用 satellite.js 在浏览器做 SGP4 轨道推算，Three.js 渲染写实 3D 地球 + 卫星粒子动画。零后端、零 API Key、零认证。
+
+### 🏗️ 技术栈
+
+| 层 | 技术 |
+|----|------|
+| 构建 | Vite 6 |
+| 3D 渲染 | Three.js 0.170 + EffectComposer + UnrealBloomPass |
+| 轨道推算 | satellite.js 5 (SGP4) |
+| 轨道数据 | CelesTrak API (10 个 TLE 分组，每 2h 刷新) |
+| UI | 原生 DOM + CSS (glassmorphism 深色面板) |
+
+### 📁 项目结构 (17 源文件, ~1,189 行)
+
+```
+satellite-viz/src/
+├── main.js                  入口：场景初始化 + 渲染循环 + HMR
+├── scene/
+│   ├── Earth.js             写实地球 (Blue Marble 贴图 + Fresnel 大气辉光)
+│   ├── Stars.js              星空粒子背景 (3000 点 + additive blending)
+│   ├── Satellites.js         卫星粒子系统 (BufferGeometry + vertexColors)
+│   ├── Orbits.js             轨道线 (propagate + Line, 按需计算)
+│   ├── Footprints.js         地面覆盖圈 (Ring geometry)
+│   └── GroundStations.js    地面站标记 (Sprite, 6 个全球发射场)
+├── data/
+│   ├── TLEFetcher.js         CelesTrak 数据拉取 (10 源并行 + localStorage 缓存)
+│   ├── TLEParser.js          TLE 3 线/2 线格式兼容解析
+│   └── Propagator.js         SGP4 批量推算 (500ms 间隔, ECI→ECF 转换)
+├── ui/
+│   ├── Panel.js              左侧控制面板 (星座筛选 + 图层开关)
+│   ├── Search.js             搜索框 (模糊匹配 + 自动旋转定位)
+│   ├── InfoCard.js           卫星信息弹出卡片
+│   ├── Legend.js             右下颜色图例 (hover 高亮筛选)
+│   └── styles.css            Glassmorphism UI (148 行)
+└── utils/
+    ├── constants.js          地球半径、TLE 源、地面站坐标
+    └── colors.js             6 类卫星颜色映射 + GlowTexture 生成
+```
+
+### 🎨 视觉效果
+
+| 特性 | 实现 |
+|------|------|
+| 写实地球 | NASA Blue Marble 2K 贴图 (可升级 8K), HemisphereLight + AmbientLight 防暗面全黑 |
+| 大气辉光 | Fresnel ShaderMaterial 透明球体 (边缘淡蓝, additive blending) |
+| 卫星粒子 | InstancedMesh 替代方案 → BufferGeometry + PointsMaterial + vertexColors |
+| Bloom 泛光 | UnrealBloomPass (strength 0.5, radius 0.4, threshold 0.85) |
+| 星空 | 3000 粒子球面随机分布，AdditiveBlending |
+
+### 🛰️ 卫星分类与颜色
+
+| 类别 | 颜色 | 数据源 |
+|------|------|--------|
+| Starlink | `#00ff88` 翠绿 | CelesTrak starlink 组 |
+| 空间站 | `#ff4466` 红 | ISS, 天宫 |
+| GNSS 导航 | `#ffcc00` 金黄 | GPS, Galileo, 北斗, GLONASS |
+| 通信卫星 | `#44aaff` 蓝 | OneWeb, Iridium, GEO |
+| 地球观测 | `#ff8844` 橙 | NOAA, Sentinel, Planet |
+| 其他 | `#888888` 灰 | 碎片, 业余卫星, 未分类 |
+
+### 🖱️ 交互
+
+| 操作 | 行为 |
+|------|------|
+| 鼠标拖拽 | OrbitControls 旋转地球 (damping 0.08) |
+| 滚轮 | 缩放 (7000–60000 km) |
+| 点击卫星 | 射线检测 → InfoCard 弹出 (名称/NORAD ID/类别/高度/坐标) |
+| 搜索框 | 模糊匹配卫星名或 NORAD ID → 自动旋转定位 + 显示轨道线 |
+| 星座筛选 | 左侧面板 checkbox 实时显隐 |
+| 图例 hover | 悬停高亮对应类别 |
+| 图层开关 | 轨道线/覆盖圈/地面站/大气辉光 独立开关 |
+
+### ⚡ 性能
+
+- 单次 draw call 渲染全部卫星 (BufferGeometry + drawRange)
+- SGP4 每 500ms 批量更新一次 (非每帧)
+- decayed 卫星自动跳过 (原点位置过滤)
+- localStorage 缓存 TLE 数据 (2h 有效期，刷新秒开)
+- Vite HMR 支持开发热重载 + dispose 清理
+
+### 📦 产物
+
+- 开发: `npm run dev` → Vite dev server + 自动打开浏览器
+- 构建: `npm run build` → `dist/` 静态文件，可部署到任意 CDN
+
+---
+
+## v0.1.4-patch1 — 文档生成工具链 (2026-07-27)
+
+### 📄 自动文档生成
+
+编写两个 Node.js 脚本，使用 `docx` 库通过代码生成专业 Word 文档，告别手动排版：
+
+| 脚本 | 产物 | 内容 |
+|------|------|------|
+| `scripts/gen-tech-spec.mjs` | 闪电树懒-软件技术说明书.docx | 开发环境、编程语言、源程序量、开发目的、面向领域、主要能力、技术特点 |
+| `scripts/gen-combined-doc.mjs` | 闪电树懒-使用说明书.docx | 新手安装激活指南 + 功能面板介绍 + 联网/文件/社交/省Token 说明 + FAQ |
+
+**输出路径**：
+- `docs/闪电树懒-使用说明书.docx`（项目内）
+- `D:/树懒Agent软件说明/闪电树懒-软件说明书.docx`（外部分发目录）
+- `D:/树懒Agent软件说明/闪电树懒-软件技术说明书.docx`（外部分发目录）
+
+**运行方式**：
+```bash
+node scripts/gen-combined-doc.mjs   # 生成使用说明书
+node scripts/gen-tech-spec.mjs      # 生成技术说明书
+```
+
+### 🔧 desktop/resources/ 资源目录
+
+- 添加 `desktop/resources/node.exe` (Node.js v24.14.0)，供 Tauri `bundle.resources` 映射使用
+
+---
+
+## v0.1.4-patch2 — 打包后 4 个 Bug 修复 (2026-07-27)
+
+### 📦 本地打包修复
+
+**缺失 `resources/node.exe`**：Tauri `tauri.conf.json` 的 `bundle.resources` 映射了 `../../resources/node.exe` → `backend/node.exe`，但该文件此前不在仓库中（已被 `.gitignore` 排除）。本地构建时 `cargo build` 直接失败。修复：从系统 Node.js (`C:\Program Files\nodejs\node.exe` v24.14.0) 复制到 `resources/node.exe`。
+
+**构建结果**：`闪电树懒_0.1.1_x64-setup.exe` (198 MB)，NSIS 中文安装包。
+
+### 🔍 诊断文档
+
+编写 [docs/bug-diagnosis-2026-07-27.md](docs/bug-diagnosis-2026-07-27.md)，系统分析 282 行诊断报告，覆盖 4 个 Bug 的数据流路径、根因和修复建议。
+
+### 🔴 Bug 2 & 3 的共享根因：`postJsonRetry` / `getJsonRetry` 不检查 HTTP 状态码
+
+**根因**：这两个函数在 `fetch` 成功后直接 `return res.json()`，从不检查 `res.ok`。当后端返回 HTTP 400/403 + `{ok: false, error: "..."}` 时，`fetch` 不抛异常（仅 `TypeError` 网络错误才抛），`res.json()` 正常解析，调用方拿到 `{ok: false}` 却从不检查。
+
+**影响 Bug 2**（微信登出被拒）：`/social/wechat-clawbot/logout` 返回 403 → 前端 `handleWechatLogout` 不检查 `ok` → 显示"已登出"但实际未登出 → SSE 推送 `social_status: connected` 纠正 → 用户体验到"登出失败/登出后又连回来"。
+
+**影响 Bug 3**（激活后重复弹窗）：`/activate` 返回 400（API Key 无效/芯云平台不通）→ 前端 `handleSaveApiKey` 不检查 `ok` → 显示"已激活"但后端 `config.needsActivation` 仍为 `true` → 下次启动 Welcome Guide 又弹出来。
+
+**影响激活按钮 Bug 4**：`handleSaveApiKey` 无加载态 + 反馈仅靠远端 Toast → 用户点击后毫无感知，等 30s 后右下角闪过"已激活"（但实际可能失败）。
+
+**修复**：
+
+| 文件 | 改动 |
+|------|------|
+| [SettingsPage.tsx](desktop/src/components/settings/SettingsPage.tsx) | `postJsonRetry` 第 267 行 `return res.json()` 前插入 `if (!res.ok)` → 解析 error body → `throw new Error()`（非 TypeError，不进入重试循环） |
+| [SettingsPage.tsx](desktop/src/components/settings/SettingsPage.tsx) | `getJsonRetry` 第 285 行同上 |
+| [SettingsPage.tsx](desktop/src/components/settings/SettingsPage.tsx) | `handleSaveApiKey` 加 `activating` 状态 + `finally` 恢复 + 检查 `result.ok` 再显示成功 + 失败时 `setActivationFeedback(msg)` 内联显示红色错误 |
+| [SettingsPage.tsx](desktop/src/components/settings/SettingsPage.tsx) | 激活按钮 `disabled={activating}` + `激活中...` 文字 + `opacity: 0.6` 禁用态 |
+| [SettingsPage.tsx](desktop/src/components/settings/SettingsPage.tsx) | 按钮下方 `{activationFeedback && <div>}` 内联错误提示 |
+| [SettingsPage.tsx](desktop/src/components/settings/SettingsPage.tsx) | 输入框 onChange 清除 `activationFeedback` |
+| [SettingsPage.tsx](desktop/src/components/settings/SettingsPage.tsx) | `handleWechatLogout` 检查 `result.ok` → 成功后自动调 `_clawbot_connect` 生成新二维码 |
+
+### 🟡 Bug 1：对话卡在"思考中"无回复 — 加 60s 超时兜底
+
+**根因**：`useSSE.ts` 中 `chat.setIsThinking(true)` 后没有任何超时机制。如果 SSE 事件因 LLM 调用失败/SSE 连接断开永远不到达，`isThinking` 永远不会被清除，UI 永远卡在思考动画。
+
+**修复**（[useSSE.ts](desktop/src/hooks/useSSE.ts)）：
+
+| 改动 | 说明 |
+|------|------|
+| 加 `thinkingTimeoutRef` | 存储 60s 超时定时器 |
+| 加 `startThinkingTimer()` | 清除旧定时器 → 60s 后强制 `setIsThinking(false)` + `setIsStreaming(false)` |
+| 加 `clearThinkingTimer()` | 清除定时器 |
+| `message_in` / `message_received` / `tick` | `setIsThinking(true)` 后调 `startThinkingTimer()` |
+| `stream_start` / `stream_chunk` (非 think 模式) | `setIsThinking(false)` 后调 `clearThinkingTimer()` |
+| `message` / `error` 事件 | `setIsThinking(false)` 后调 `clearThinkingTimer()` |
+| cleanup | `clearTimeout(thinkingTimeoutRef.current)` |
+
+### 🟡 优化：欢迎弹窗不再对已有 Key 的用户弹出
+
+**修复**（[App.tsx](desktop/src/App.tsx#L157)）：启动后轮询 `/activation-status` 前，先检查 `localStorage.getItem('velora_llm_api_key')`。有 Key 则跳过弹窗。覆盖场景：用户激活了但后端 config 未持久化成功 → 至少不会每次启动都被弹窗骚扰，可去设置页修复。
+
+### 🔵 微信登出后自动生成新二维码
+
+**用户需求**：点击登出 → 断开微信连接 → 自动弹出新二维码，用户可以直接重新扫码绑定。
+
+**修复**（`handleWechatLogout`）：登出成功后 → `setTimeout(500ms)` → `postJsonRetry('/settings/social', {_clawbot_connect: '1'})` → `setTimeout(3000ms)` → `getJsonRetry('/social/wechat-clawbot/qr')` + fetch QR 图片 → 更新 `wechatQr` + `qrExpiresAt`。全过程自动，用户只需等待新二维码出现后扫码。
+
+### ✅ 验证
+
+- TypeScript 编译零错误
+- Vite 构建通过（590KB JS + 18KB CSS）
+- Tauri 打包通过（198 MB NSIS 安装器）
+
+### 📄 文档
+
+- [docs/bug-diagnosis-2026-07-27.md](docs/bug-diagnosis-2026-07-27.md) — 282 行完整诊断报告，含架构图、数据流追踪、4 个 Bug 的根因分析和修复建议
+
+---
+
+## v0.1.4-patch3 — 6 项缺陷系统化修复 (2026-07-27)
+
+> 基于 `v0.1.4-patch2` 诊断报告中识别的问题，完成全部修复并重新打包。
+
+### 🔍 方法
+
+两个 Explore Agent 并行追踪全链路数据流：
+
+- **聊天回复丢失**：追踪 16 个静默丢失点，确诊 LLM 产出空内容时 `finalizeStream`（`chat-store.ts:87`）和 `callLLM` fallback（`llm.js:1400`）双双沉默返回
+- **微信登出 403**：确诊 CORS OPTIONS 预检被 `hasAllowedAccess`（IP-only 鉴权）拦住，真正的 POST 从未发出
+
+### 改动文件
+
+| 文件 | 改动数 |
+|------|--------|
+| `desktop/src/components/settings/SettingsPage.tsx` | 7 处 |
+| `desktop/src/hooks/useSSE.ts` | 7 处 |
+| `desktop/src/stores/chat-store.ts` | 1 处 |
+| `desktop/src/types/index.ts` | 1 处 |
+| `src/api.js` | 1 处（加 OPTIONS 预检处理器 + 日志） |
+| `src/index.js` | 1 处（无回复时 emmit error） |
+| `desktop/src-tauri/src/lib.rs` | 3 处（PID 追踪 + backend.log + data_dir 前置） |
+
+### 🔴 微信登出 403 — 加 OPTIONS 预检处理器
+
+**根因**：浏览器跨域 POST 先发 OPTIONS 预检 → 掉到通用中间件 `hasAllowedAccess` → 不认 `tauri.localhost` → 403 不带 CORS 头 → 真正 POST 被浏览器拦截。
+
+**修复**（[api.js](src/api.js)）：POST 路由前加 OPTIONS 专用处理器，用 `isAllowedOrigin(origin)` 鉴权替代 `hasAllowedAccess`。POST 路由鉴权从纯 `requireLocalOrToken` 改为 loopback / token / origin 三选一。
+
+### 🔴 思考完无回复 — 三层兜底
+
+**根因**：LLM 产出思考后无正文 → `callLLM` fallback 跳过（内容空）→ `finalizeStream` 沉默 return → UI 无声。
+
+**修复**：
+
+| 层 | 文件 | 改动 |
+|----|------|------|
+| 后端 | [index.js](src/index.js) | `protocol_violation` 后追加 `emitEvent('error', ...)` |
+| store | [chat-store.ts](desktop/src/stores/chat-store.ts) | `finalizeStream` 空时插入系统错误消息 |
+| SSE | [useSSE.ts](desktop/src/hooks/useSSE.ts) | 加 `protocol_violation` 处理 + `clearThinkingTimer` |
+| 类型 | [types/index.ts](desktop/src/types/index.ts) | SSEEventType 新增类型 |
+
+### 🔴 激活卡"激活中..." — fetch 加 15s 超时
+
+**根因**：`postJsonRetry` / `getJsonRetry` 无请求超时 + 浏览器默认 300s + 最多 10 次重试 → `/activate` 后端调芯云测试请求挂住时前端无限等。
+
+**修复**（[SettingsPage.tsx](desktop/src/components/settings/SettingsPage.tsx)）：`fetch` 加 `AbortSignal.timeout(15000)` + `isNetwork` 识别 `TimeoutError`/`AbortError`。激活成功后拆开 `/settings` 加载到独立 try/catch。
+
+### 🔵 激活按钮反馈强化
+
+`activating` 状态 → 按钮 disabled + "激活中..." + opacity 0.6 + 内联错误文字。输入框 onChange 清除反馈。
+
+### 🔵 欢迎弹窗对已有 Key 用户不弹
+
+[App.tsx](desktop/src/App.tsx)：轮询 `activation-status` 前先查 `localStorage.velora_llm_api_key`。
+
+### 🔵 微信登出后自动生成新二维码
+
+登出成功 → 500ms 后调 `_clawbot_connect` → 3000ms 后拉取 QR 图片展示。
+
+### 🔵 node.exe 僵尸进程 PID 追踪
+
+**根因**：旧清理只杀 3721 LISTENING 进程。后端启动需 9-30s 同步扫描，期间不在端口上。用户关窗 → 进程变僵尸 → 下次找不到。
+
+**修复**（[lib.rs](desktop/src-tauri/src/lib.rs)）：PID 写入 `%APPDATA%\闪电树懒\.backend-pid`，下次启动 `taskkill /f /pid` 精准杀。优雅退出删文件。端口扫描仍保留双保险。
+
+### 🔵 后端日志 stderr → backend.log
+
+[lib.rs](desktop/src-tauri/src/lib.rs)：`cmd.stderr` 从 `std::process::Stdio::null()` 改为 `File::create(data_dir.join("backend.log"))`。用户 Win+R → `%APPDATA%\闪电树懒\backend.log` → 开发者即可诊断。
+
+### 📦 产物
+
+`闪电树懒_0.1.1_x64-setup.exe` (198 MB)，`desktop/src-tauri/target/release/bundle/nsis/`
+
+### ✅ 验证
+
+TypeScript 零错误 · Vite 构建通过 (592KB JS) · cargo check 通过 · Node.js 语法检查通过 · Tauri release 打包通过
+
+### 📄 文档
+
+[docs/bug-diagnosis-2026-07-27.md](docs/bug-diagnosis-2026-07-27.md) — 完整诊断报告
+
+---
+
+## v0.1.4-patch4 — 全链路生产缺陷修复 (2026-07-28)
+
+> 这是投入最大的一个 patch。6 个 bug 经过数小时系统化调试、多 Agent 并行数据流追踪、和数十次测试迭代才全部根除。
+
+### 🔴 Critical 1: `/activate` 路由挂死 — 修复 `readJsonBody` 竞态
+
+**症状**：前端点激活后一直"激活中..."，后端不响应。curl `/activate/prepare` 秒回，curl `/activate` 30 秒超时且返回 0 字节。
+
+**根因**：`readJsonBody`（[api.js:211](src/api.js#L211)）基于 `req.on('end')` 的 Promise 对 `/activate` 路由的 POST 请求永远收不到 `end` 事件。事件监听器被其他地方抢走导致 Promise 永不 resolve → `await readJsonBody(req)` 永久挂起 → `jsonResponse` 永不执行 → HTTP 连接挂死直到超时。
+
+**修复**（[api.js](src/api.js)）：将 `/activate` 路由的请求体读取从 `await readJsonBody(req)` 替换为原始 `req.on('data')`/`req.on('end')` 回调模式，避免 Promise 竞态。同时将 `activateLLM` 调用替换为直接调 `prepareLLMActivation` + `commitPreparedActivation`（与 `/activate/prepare` 同路径）。
+
+**验证**：用真实 API Key 的 curl 秒回 `{ok:true,model:"deepseek-v4-pro",models:[...]}`。
+
+### 🔴 Critical 2: 前端对话回复静默丢失
+
+**症状**：用户发消息后"正在思考..."动画结束，但聊天窗口没有任何回复。
+
+**根因**：LLM 产出思考内容后无正文 → `callLLM` 在 `llm.js:1400` 跳过 fallback 投递（`fallbackContent` 为空且 `delivered` 保持 `false`）→ `finalizeStream` 在 `chat-store.ts:87` 因 `currentStreamContent.trim()` 为空而沉默返回。
+
+**修复**（4 层）：
+
+| 层 | 文件 | 改动 |
+|----|------|------|
+| 后端 | [index.js](src/index.js) | `protocol_violation` 分支加 `emitEvent('error', { error: 'AI 未能生成回复，请稍后重试' })` |
+| 前端 store | [chat-store.ts](desktop/src/stores/chat-store.ts) | `finalizeStream` 空内容时插入 `role:'system'` 错误消息而非沉默 return |
+| 前端 SSE | [useSSE.ts](desktop/src/hooks/useSSE.ts) | 加 `protocol_violation` 事件处理 + 错误处理清 `currentStreamContent` |
+| 类型 | [types/index.ts](desktop/src/types/index.ts) | `SSEEventType` 新增 `protocol_violation` 和 `llm_retry` |
+
+### 🔴 Critical 3: 微信登出 CORS 预检被拒
+
+**症状**：设置页点击"登出"按钮后显示"登出失败，请稍后重试"。
+
+**根因**：浏览器跨域 POST 前发 OPTIONS 预检 → 预检不匹配任何路由（第 469 行只匹配 `req.method === 'POST'`）→ 掉到通用中间件 `hasAllowedAccess`（只认 IP 不认 `tauri.localhost` origin）→ 返回 403 且不带 CORS 头 → 浏览器拦截，真正的 POST 请求从未发出。
+
+**修复**（[api.js](src/api.js)）：在 POST 路由前加 OPTIONS 专用处理器 + POST 路由鉴权从 `requireLocalOrToken` 改为同时接受 `isAllowedOrigin(origin)`。
+
+### 🔴 Critical 4: 前端激活按钮卡死 + 无反馈
+
+**症状**：按钮一直"激活中..."，无超时退出。
+
+**根因**：`postJsonRetry` 的 `fetch` 无超时（浏览器默认 300 秒）。后端 `/activate` 挂死时，前端无感知地等了 300 秒才抛异常。
+
+**修复**（[SettingsPage.tsx](desktop/src/components/settings/SettingsPage.tsx)）：`postJsonRetry` 加可选 `opts.timeoutMs` 参数，`/activate` 和 `/activate/prepare` 的三处调用传 `{ timeoutMs: 45000 }`。TimeoutError 不重试（非 `isNetwork`）。
+
+### 🔵 修复 5: 前端激活按钮视觉反馈强化
+
+| 改动 | 说明 |
+|------|------|
+| `activating` 状态 | 按钮 `disabled` + 文字 `激活中...` + `opacity: 0.6` |
+| 内联错误反馈 | `activationFeedback` → 按钮下方红色文字 |
+| `result.ok` 检查 | 三处激活调用都检查返回值 |
+| 模型列表加载 | `/settings` 放入独立 try/catch，不阻塞激活反馈 |
+| 欢迎弹窗 | 已有 `localStorage.velora_llm_api_key` 时跳过 |
+
+### 🔵 修复 6: node.exe 僵尸进程全面根治
+
+**根因**：`tauri dev` 下 Job Object 不可用（CLI 已占有）。旧清理用 `netstat | findstr` 管道不可靠 + 只杀单 PID 不杀树。
+
+**最终方案**（[lib.rs](desktop/src-tauri/src/lib.rs)）：
+
+| 层 | 机制 | 覆盖 |
+|----|------|------|
+| 启动前 | PID 文件 `taskkill /f /t` → `.wait()` 等完成 | 上次会话的进程树 |
+| 启动前 | `wmic process where commandline like '%src/index.js%' delete` | 所有命令行的 node 僵尸 |
+| 启动后 | Job Object `KILL_ON_JOB_CLOSE` | 打包模式防止新僵尸 |
+| 退出 | `Destroyed` 事件 → `child.kill()` | 正常退出 |
+| 诊断 | stderr → `%APPDATA%\闪电树懒\backend.log` | 生产环境日志可见 |
+| macOS | `lsof -ti:3721 | xargs kill -9` | DMG 端口杀兜底 |
+
+### 🔵 修复 7: `useSSE.ts` 3 个 Critical bug（审计发现）
+
+| bug | 修复 |
+|-----|------|
+| `message` 事件无条件 `finalizeStream` → 假错误消息 | 加 `if (chat.isStreaming)` 守卫 |
+| 错误处理不清 `currentStreamContent` → 旧内容拼到新回复 | 加 `chat.setCurrentStreamContent('')` |
+| think chunk 不续期 → 60s 超时打断长思考 | think 模式调 `startThinkingTimer()` |
+
+### 📦 产物
+
+`闪电树懒_0.1.1_x64-setup.exe` (198 MB)，待重新打包。
+
+### ✅ 验证
+
+- TypeScript 零错误 · Node.js 语法检查通过 · cargo check 通过
+- `/activate` 用真实 Key 后端秒回 `ok:true`
+- `curl /activate` 端到端验证通过
+- 僵尸进程清理逻辑经多次 `tauri dev` 循环验证
+
+### 🔵 修复 8: 深度思考实时流式推送（Claude Code 风格）
+
+**症状**：思考模式下，后端把整个推理过程缓存，思考结束后一次性推到前端。前端收到的是静态文本块，用户看不到思考过程的实时演进。
+
+**修复**（[llm.js](src/llm.js)）：
+
+| 之前 | 现在 |
+|------|------|
+| 所有 `reasoning_content` tokens 攒到 `fullReasoningContent` | 每个 token 立即通过 `onStream('chunk', {text})` 推送 |
+| 思考结束后一次性 `emit start + whole-block chunk + end` | 第一个 token 时 `emit start('think')`，后续 tokens 逐个 `chunk`，结束时 `emit end` |
+| 前端收到的是已完成的折叠块 | 前端收到的是逐字实时流，用户可随时展开查看 |
+
+**前端**（[ChatMessage.tsx](desktop/src/components/chat/ChatMessage.tsx)）：保持纯粹用户控制——`thinkingOpen` 默认 `false`，不加任何自动展开/收起 effect。和 Claude Code 的交互完全一致：思考过程默认隐藏，用户感兴趣自己点。
+
+---
+
+*最后更新: 2026-07-28*

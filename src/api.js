@@ -466,9 +466,34 @@ export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = n
       return jsonResponse(res, 200, { ok: true, status: getFeishuStatus(), configured })
     }
 
+    // OPTIONS preflight for /social/wechat-clawbot/logout — must be handled BEFORE
+    // the POST handler below, otherwise the browser's CORS preflight falls through to
+    // the general middleware (line ~497) where hasAllowedAccess (IP-only check) rejects
+    // it without CORS headers, blocking the actual POST entirely.
+    if (req.method === 'OPTIONS' && url.pathname === '/social/wechat-clawbot/logout') {
+      if (origin && !isAllowedOrigin(origin)) {
+        return jsonResponse(res, 403, { ok: false, error: 'forbidden origin' })
+      }
+      if (isAllowedOrigin(origin)) res.setHeader('Access-Control-Allow-Origin', origin || 'null')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+      res.writeHead(204)
+      res.end()
+      return
+    }
+
     // POST /social/wechat-clawbot/logout — clear credentials and disconnect
     if (req.method === 'POST' && url.pathname === '/social/wechat-clawbot/logout') {
-      if (!requireLocalOrToken(req, res, url)) return
+      // Accept from loopback OR from a trusted WebView2 origin (tauri.localhost).
+      // requireLocalOrToken alone can fail in packaged Tauri if remoteAddress is not
+      // recognized as loopback; origin-based auth is the middleware's primary gate anyway.
+      const trusted = isLoopbackRequest(req) || hasValidAuthToken(req, url) || isAllowedOrigin(origin)
+      console.log('[API] /social/wechat-clawbot/logout remoteAddress=%s origin=%s trusted=%s',
+        req.socket?.remoteAddress || '<none>', origin || '<none>', trusted)
+      if (!trusted) {
+        if (isAllowedOrigin(origin)) res.setHeader('Access-Control-Allow-Origin', origin || 'null')
+        return jsonResponse(res, 403, { ok: false, error: 'forbidden' })
+      }
       if (isAllowedOrigin(origin)) res.setHeader('Access-Control-Allow-Origin', origin || 'null')
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
@@ -1191,30 +1216,26 @@ export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = n
 
     // POST /activate — submit API key to complete activation
     if (req.method === 'POST' && url.pathname === '/activate') {
-      ;(async () => {
+      const chunks = []
+      req.on('data', c => chunks.push(c))
+      req.on('end', async () => {
         try {
-          const { apiKey, model, provider, baseURL, agentName, preparedToken } = await readJsonBody(req)
-
+          const body = JSON.parse(Buffer.concat(chunks).toString('utf-8') || '{}')
+          const { apiKey, model, provider, baseURL, agentName, preparedToken } = body
           const trimmedName = validateAgentName(agentName)
-
           const prepared = getPreparedActivation(preparedToken, apiKey)
           const info = prepared
             ? commitPreparedActivation(prepared.info)
-            : await activateLLM({ provider, apiKey, model, baseURL })
+            : commitPreparedActivation(await prepareLLMActivation({ provider, apiKey, model, baseURL }))
           if (prepared) pendingActivation = null
-
           if (trimmedName) {
             try {
               setConfig('agent_name', trimmedName)
               setStickyEvent('agent_name_updated', { name: trimmedName })
               emitEvent('agent_name_updated', { name: trimmedName })
-            } catch (err) {
-              console.error('[API] save agent_name failed:', err)
-            }
+            } catch (err) { console.error('[API] save agent_name failed:', err) }
           }
-
           emitEvent('activated', info)
-          // Notify index.js to start the main loop
           if (typeof onActivatedCallback === 'function') {
             try { onActivatedCallback() } catch (err) { console.error('[API] onActivated callback error:', err) }
           }

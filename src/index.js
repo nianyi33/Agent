@@ -1572,7 +1572,7 @@ async function runTurn(input, label, msg = null) {
           content: response.slice(0, 500),
         })
       } else {
-        // 既没显式 send_message，callLLM 也没能兜底投递（无可投递正文 / 被中止 等）→ 纯遥测。
+        // 既没显式 send_message，callLLM 也没能兜底投递（无可投递正文 / 被中止 等）。
         console.warn(`[protocol violation] Model did not call send_message and runtime had nothing deliverable to fall back on. from=${msg.fromId}`)
         emitEvent('protocol_violation', {
           label,
@@ -1580,6 +1580,8 @@ async function runTurn(input, label, msg = null) {
           fromId: msg.fromId,
           content: response.slice(0, 500),
         })
+        // 用户发了一条消息但 AI 未能生成任何回复 → 推错误到前端，避免 UI 永远卡在"思考中"
+        emitEvent('error', { label, error: 'AI 未能生成回复，请稍后重试' })
       }
     }
   }

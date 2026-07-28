@@ -19,7 +19,7 @@ export type SSEEventType =
   | 'agent_name_updated' | 'activated' | 'model_switched'
   | 'admin' | 'ui_signal' | 'error' | 'quota'
   | 'reminder_fired' | 'context_gathered' | 'injector_result' | 'focus_frame'
-  | 'social_status';
+  | 'social_status' | 'protocol_violation' | 'llm_retry';
 
 export interface SSEEvent {
   type: SSEEventType;
