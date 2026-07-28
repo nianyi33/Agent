@@ -46,9 +46,12 @@ jobs:
 
       - name: Install backend deps (platform-native)
         working-directory: .
-        # CI runs Node 24 + MSVC toolchain (via Rust) — native modules compile
-        # correctly without prebuilds. No more giant tar.gz in git history.
-        run: npm ci --omit=dev
+        # Install JS deps without native compilation, then restore prebuilt
+        # .node files (compiled locally with Node 24 ABI 137, packed as slim
+        # 45MB tar — only .node + DLLs, well under GitHub's 100MB limit).
+        run: |
+          npm ci --omit=dev --ignore-scripts
+          tar -xzf native-prebuilds-win-x64.tar.gz
 
       - name: Verify native modules load with bundled node
         shell: pwsh
