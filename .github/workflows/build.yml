@@ -46,12 +46,9 @@ jobs:
 
       - name: Install backend deps (platform-native)
         working-directory: .
-        # Install all deps without running native compilation scripts.
-        # Then restore prebuilt .node files (compiled locally and committed
-        # as native-prebuilds-win-x64.tar.gz — Node 24 ABI 137).
-        run: |
-          npm ci --omit=dev --ignore-scripts
-          tar -xzf native-prebuilds-win-x64.tar.gz
+        # CI runs Node 24 + MSVC toolchain (via Rust) — native modules compile
+        # correctly without prebuilds. No more giant tar.gz in git history.
+        run: npm ci --omit=dev
 
       - name: Verify native modules load with bundled node
         shell: pwsh
@@ -164,10 +161,10 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          name: "闪电树懒 v0.1.3"
-          tag_name: "v0.1.3"
+          name: "闪电树懒 v0.1.4"
+          tag_name: "v0.1.4"
           body: |
-            ## 闪电树懒 v0.1.3
+            ## 闪电树懒 v0.1.4
 
             智能桌面助手 — Tauri 桌面应用，内置 Node.js 运行时 + 35 个 Agent 技能。
 
@@ -181,12 +178,15 @@ jobs:
             3. 设置页 → 通用 → 输入 Key → 激活
             4. 开始使用
 
-            ### v0.1.3 更新
-            - 思考块完整实现 + 自主tick省token
-            - 前端设置页全线加固（30s重试窗口）
-            - 安全审计14项修复 + 部分LLM挂死修复
-            - 热点/世界杯后台自动刷新
-            - 三主题切换 + 亮度调节
+            ### v0.1.4 更新
+            - **修复 /activate 路由挂死**: 激活不再卡"激活中..."
+            - **修复对话回复静默丢失**: 思考结束后必定显示回复或错误提示
+            - **修复微信登出 CORS 预检被拒**: 登出按钮正常工作
+            - **修复 node.exe 僵尸进程**: 关闭应用后不再残留进程
+            - **修复激活按钮交互**: 加载态、内联错误反馈、45s 超时保护
+            - **深度思考实时流式推送**: 推理过程逐字展示，默认收起、点击展开
+            - **后端日志可见**: 启动根目录生成 backend.log，方便诊断
+            - **多个稳定性修复**: 欢迎弹窗优化、模型切换、前后端耦合加固
           files: release-files/*
           draft: false
           prerelease: false
